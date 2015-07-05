@@ -1,2 +1,5 @@
 # gawk test
 /src/test
+
+# generated files
+/out
