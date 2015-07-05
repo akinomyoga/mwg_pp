@@ -1,0 +1,52 @@
+#!/home/koichi/.mwg/src/mwgpp/src/ev3v2/ev3v2.awk
+// -*- mode:c++ -*-
+__EV3_CHECK_HEAP__=1;
+
+puts("== リテラル ==");
+dump(1);dump(1.23);
+dump("string");dump('string');
+dump(true);dump(false);
+dump(null);
+
+puts("== 比較 ==");
+puts("1234"=="1234");
+puts("1234"!="1234");
+puts(1234==1234);
+puts(1234!=1234);
+puts(1234=="1234");
+puts(1234==="1234");
+
+puts("== 整数 ==");
+puts(-2|-1);
+(1*2+4*-+-+-5)===-18||puts("error");
+(1-(2+3)===-4)||puts("error");
+(1+2+3+4===10)||puts("error");
+
+puts("== 文字列 ==");
+-18+':'+'hello'==="-18:hello"||puts("error");
+null+':'+null==="null:null"||puts("error");
+
+puts("== オブジェクト ==");
+puts((1,2,3,4));
+dump([1,2,3,4]);
+
+puts("== 変数 ==");
+hello=2004,a=b=3,puts(a+=b+=3);
+puts(hello=2004);
+a=2;++a;++++a;--a;b=1;b++;puts(a+":"+b);
+o=[1,2,3];o.hello=123;o.o=[1,2,3,4];puts(o.o);
+puts("== メンバー ==");
+1..toString;
+(a=[]).toString='array';(1).toString;[a.toString,[].toString,(1).toString];
+[1];
+a=1;puts('hello world');
+printf('%05d\n',12);
+if(sqrt(2)>1.4)puts("this is true") else puts("this is false");
+if(x==0)puts("tt");
+for(i=0;i<10;i++)printf("%04d\n",i);
+printf("%.10g\n",2*(16725+10245)+2*(16725+10245)+20*(9108+9362)+6*(12214+8816)+8.4*(9040+14824)/2+2*(17964+12216)+2*(15360+11620)+2*(15360+11620)+8.4*(10823+9132));
+dump(eval("puts(\"HW!\")"));
+
+puts("== lambda ==");
+f=(a,b,c)=>{r+=":"+(++x)};r=x=1;f();f();dump(r);
+f=null; // 現在の実装だと循環参照に。

@@ -1,0 +1,84 @@
+# -*- coding:utf-8-dos -*-
+
+■Ev3 Object System
+
+複雑な構造も保持できるような仕組みを作成する。
+
+hash ev3obj;
+  全てのデータはこの連想配列変数に格納する。
+
+  ev3obj[ptr]          値
+  ev3obj[ptr,"T"]      型を表す文字列/整数
+                        TYPE_NUL 空 | TYPE_NUM 数値 | TYPE_STR 文字列 |
+                        TYPE_ARR 配列 | TYPE_OBJ オブジェクト |
+                        TYPE_REF 参照 | TYPE_ARG 引数リスト
+  ev3obj[ptr,"&"]      参照カウンタ
+  ev3obj[ptr,"." name] メンバ
+
+
+  構文解析用特別データ
+  ev3obj[ptr,"+t"]     スタック要素としてのタイプ
+                        SE_PREF | SEMARK | SE_VALU
+  ev3obj[ptr,"+ot"]     SE_PREF の種類
+                        "b" 二項演算子 | "u" 単項演算子 | ""
+  ev3obj[ptr,"+op"]     演算子の優先順位
+  ev3obj[ptr,"+ow"]     演算子の名前 + - etc
+
+
+  ptr はデータを指定する為の文字列
+    "::name"  変数名
+    "h:0"     動的に確保された物体 0: index
+    "s0:1"    構文解析スタック上の物体 0: index 1:hoge
+
+型の詳細
+
+  TYPE_ARR
+    ev3obj[ptr]           # 配列要素の数
+    ev3obj[ptr,"." index] # index 番目の配列要素 (ptr = ptrArray SUBSEP "." index)
+  TYPE_OBJ
+    ev3obj[ptr]           # メンバの数
+    ev3obj[ptr,"." index] # index 番目のメンバ名
+    ev3obj[ptr,".:" name] # name メンバ (ptr = ptrObject SUBSEP ".:" membername)
+  TYPE_ERR
+    ev3obj[ptr]           # エラーメッセージ
+  TYPE_REF
+    + reference への reference は生成しない
+    + 解析スタック上の物体への reference は生成しない
+    +
+
+int ev3obj_heap_count;
+
+ptr ev3obj_errno     ;
+  エラーに関する情報を格納したオブジェクトへの参照
+
+□ev3parse_op_call 実装
+
+  スタック上のオブジェクトに対する参照が欲しい場合にはどうすれば良いか?
+  例:
+    hello["world"]; # 1
+    [1,2,3][0];     # 2
+    [1,2,3].length; # 3
+    "hello".length; # 4
+    
+    #1 では ":hello .:world" に対する参照が生成される。これは OK。
+    #2 では "s0:0 .0" に対する参照が生成されるが…"s0:0" は上書きされて消える。
+    a. そもそも配列をスタック上に置いているのが駄目なのでは?
+       配列やオブジェクトなどは実体はヒープに確保して、スタック上には参照しか置かない様にする。
+
+       →然し、それを言い出すと #4 の様な文字列の場合も、スタック上に参照しか置かない様に実装し直すのだろうか。
+         更に、数値変数に対する関数呼出も実行したいとなれば、数値に対する参照が欲しくなる。
+         (1).operator++ 的な…物。
+       →値でも参照でも良い様にする?
+         配列の場合などは参照としてコピーをする。
+         数値の場合などには値としてコピーする。
+
+         hello["world"]             -> REF ":hello .:world"
+         [1,2,3][0]                 -> VAL 1
+         (new array([1,2,3]))[0]    -> REF "h:0 .0"
+         "hello".length             -> MEM { VAL "hello", "length" }
+         new string("hello").length -> MEM { REF "h:1", "length" }
+
+       →要するに参照からは参照を生成し、値からは値を生成する。
+         値から値を生成する時は、値を生成している途中に上書きしてしまうと問題なので、
+         別の場所に書き込む様に注意する。         
+

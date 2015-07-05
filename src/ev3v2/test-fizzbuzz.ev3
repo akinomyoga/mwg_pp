@@ -1,0 +1,5 @@
+#!/usr/bin/env ./ev3v2.awk
+// -*- mode:c++ -*-
+
+puts("== FizzBuzz ==");
+for(i=1;i<=100;i++)(a=i%3==0?"Fizz":"",i%5==0&&(a+="Buzz"),puts(i+": "+(a!==""?a:i)));

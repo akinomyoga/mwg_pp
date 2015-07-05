@@ -1,0 +1,463 @@
+現在の実装は obj_i2.awk 上で行っている
+
+現在の機能について
+
+  ++ -- ToDo
+
+関数一覧
+
+  型定義
+  obj_type_define(name.cls)
+  obj_structType_defineMember(typeid,memberName);
+  obj_enumType_defineName(typeid,name[,value]);
+  obj_enumType_getName(typeid,value);
+
+  obj_univ_print(_i,_n,_keys);
+  obj_univ(key[,defaultValue]);
+
+  オブジェクト基本管理  
+  _obj_create();
+    参照カウント管理用の UKEY を生成し TYPE_NULL で初期化する。
+  _obj_destruct(ptr);
+    オブジェクトを始末する。TYPE_NULL を上書きする。
+    参照カウント及び UKEY は残す。
+    (完全に削除するには obj_release で参照カウントを0にする必要がある)。
+  _obj_dec(ptr);
+    参照カウントを減少させる。
+  _obj_inc(ptr);
+    参照カウントを増加させる。
+
+  オブジェクト構築・管理・破壊用のインターフェイス
+  obj_new([obj]);
+    Object インスタンスの生成
+  obj_new_scal(type,value);
+    スカラー値による初期化
+  obj_delete(obj);
+    destruct&dec
+  obj_capture(obj);
+    inc
+  obj_release(obj);
+    dec
+
+  値の代入・コピーの類
+  obj_assignScal(dst,type,value);
+  obj_assignObj(dst,src);
+
+  複合型のメンバの管理
+  obj_getMemberPtr(obj,memberName,creates);
+  obj_setMemberScal(obj,memberName,type,value);
+  obj_setMemberObj(obj,memberName,ptr);
+  obj_getMemberValue(obj,memberName);
+  obj_unsetMember(obj,memberName);
+
+  obj_dump(obj);
+    オブジェクトの構造を表示
+
+  実装用の値チェックユーティリティ
+  obj_checkIfRoot(obj);
+  obj_checkNonNull(obj);
+  obj_checkByRef(obj);
+
+  getter/setterインターフェイス
+  obj_isPropertyNameValid(obj,memberName);
+  obj_setProperty(obj,memberName,ptr);
+  obj_getProperty(obj,memberName,dst);
+
+-------------------------------------------------------------------------------
+計画一覧
+
+
+2015-07-05
+* 遅い理由がわかった様な気がする。
+  部分式を使いまわせる形式で保持しているのがいけない。
+  このために効率的なメモリの割当ができない状態になっている。
+
+  普通は全体の式を見る事によって一時的な変数などが決定される。
+  一時的な変数についてはスタック上などに値を割り当てれば良く、
+  メモリ割り当て・参照カウンタ・解放などの対象とならない。
+  最終的な結果の値にだけメモリを割り当てれば良いのである。
+
+  部分式を再利用可能な形で保持している場合、
+  部分式の評価結果の寿命がわからないので、
+  必ずメモリの割当を実行する必要がある。
+  部分式毎にメモリを割り当てるのだから遅くて当然である。
+
+  これを解決するためには部分式の寿命をグローバルに解析して、
+  寿命に応じてスタック上・関数内ローカル変数・グローバルなメモリ
+  という具合に割当先を切り替えて処理する必要がある。
+
+* 循環参照?
+
+  クロージャを実装したら循環参照ができた。考えてみれば当たり前の事である。
+  循環参照に対して正しく対処するためには gcroot objects を管理して、
+  その上で mark&sweep をしなければならない。
+  gcroot objects の管理は面倒である。
+
+  % gcroot objects を管理しなくても循環を検出する方法はあるだろうか。
+  % 仮定: 参照カウントにはバグがない (参照カウントは常に正しい)
+  % 仮定: gcroot objects は他のオブジェクトから参照されない
+  % この時、循環クラスタに含まれる要素は
+  % 全て他のオブジェクトから参照されている状態になっている。
+  % 
+  % 或いは inc/dec を多少弄るだけで gcroot かどうか判定できるのでは?
+  % 参照カウントを触っているのはどこからかを調べる。
+  %   ev3obj_create <- ev3obj_new, ev3obj_new_scal, ev3obj_placementNew
+  %   _ev3obj_inc <- ev3obj_capture, ev3obj_assignScal
+  %   _ev3obj_dec <- ev3obj_delete ev3obj_release ev3obj_destruct
+  % 
+  % この ev3obj_capture は曲者である。これを使えば、
+  % 他から当然参照されているオブジェクトを gcroot に昇格しうる。
+  % 実際 (一時的な昇格としてであるが) 昇格が行われている様だ。
+  % 従って「gcroot は他から参照されない」という仮定は崩れる。
+
+  通常の ref count とは別に gcroot も作って、
+  gcroot 参照を作成・削除する為の関数と内部参照を作成・削除する為の関数を区別する。
+  gcroot 参照を作成する為の関数群
+    ev3obj_capture, ev3obj_new, ev3obj_new_scal
+  gcroot 参照を削除する為の関数群
+    ev3obj_delete, ev3obj_release
+
+* ev3obj_delete の意義?
+
+  参照カウントが正しく働いている限り明示的に削除する必要はないはず。
+  ただし循環参照ができるという事を知っている場合に強制的に削除するのに使う事ができる。
+  例えば自分から自分への参照の場合など?
+
+  試しに ev3obj_delete から ev3obj_release に置き換えてみたが問題は発生していない様に見える。
+  取り敢えず、現在 ev3obj_delete を使っている箇所は ev3obj_release に置き換えることにする。
+  
+  
+
+★懸念: SUBSEP を含むメンバ名の取り扱いについて
+
+P6 -> file
+
+P7 prototype の対応
+
+重層的な context を実現したり様々なメンバを提供する上で、prototype の実装は必須である。
+取り敢えず CLASS_SCAL と CLASS_STRUCT に関しては、obj_type に prototype への参照を保持する。
+更に、デフォルトの prototype (toString, toNumber, toBoolean を持つ) も用意すると尚良い。
+
+7.1
+  メンバ名?
+  operator string, operator number, operator boolean,
+
+  演算子オーバーロードをメンバを介して行うと誤って上書きした場合が怖い。
+  (通常の辞書として使う {} の場合は {}.member や {}["member"] しか用いないので、
+  [] さえオーバーロードしなければ何でも良い。)
+  やはり、演算子オーバーロードに関しては危ないので別の方法で定義する方が良い?
+  或いはユーザによって設定されたメンバはキーの先頭に + を付けるなど。
+  この方針で行く事に決定。先頭に "+" を付けるのはそんなに難しくはない様だ。
+
+  以下の様な prefix で様々なメンバを区別する事にする。
+  + → public member
+  - → private member
+  %%= → setter (任意のメンバに対応する時は !set)%%
+  %%$ → getter (任意のメンバに対応する時は !get)%%
+  !   → operator
+    例 ![] : 任意のメンバに対する get/set を定義する。
+
+  getter/setter は public member の中に代入する。
+  但し、getProperty で取得した結果が TYPE_PROP の時にgetter呼出を実行する。
+
+  operator上書きは CLASS_BYREF に対してしか許可しない。
+  二項演算子のオーバーロードは、左を試してから、右を試す。
+
+
+P8 benchmark
+
+| expr="(a=[]).toString='array';(1).toString;[a.toString,[].toString,(1).toString]";
+| 
+| for(i=0;i<100;i++){
+|   # for(j=0;j<10;j++)
+|   #   wc=ev3scan(expr,words); # 0.969/1000 = 0.97 ms
+|
+|   _s=ev3parse(expr);          # 1.484 / 100 = 14.84 ms
+|   for(j=0;j<10;j++){
+|     _v=ev3eval_expr(_ctx,_s); # (3.984-1.625)/1000 = 2.359/1000 = 2.36 ms
+|     ev3obj_release(_v);       # (4.031-3.984)/1000 = 0.047/1000 = 0.05 ms
+|   }
+|   ev3obj_release(_s);         # (1.625-1.484)/100 = 0.141/100 = 1.41 ms
+| }
+
+式は線形の単純な物である (つまりループなどはない)。
+先ず第一に結構計算に時間が掛かる様である。
+上に示したような単純な式なのに構文解析に 14.8 ms もかかっている。
+
+更に構文解析の内訳を見る。
+  ev3scan で単語の切り分けを行っているがこれは 1ms に満たない。
+  構文解析の時間の数 % に過ぎない。単語は 33 個作成される。
+  たった 33 個の単語の解析をするだけで 13 ms もかかるのは理解しがたい。
+
+| for(i=0;i<100;i++){
+|   _s=ev3parse(expr);
+|   ev3obj_release(_s);
+| }
+| exit
+
+  1 取り敢えず ev3parse+ev3obj_release の時間を計る。
+    初めは合計 16.25 ms かかっている。
+  2 コードを眺めて見て ev3obj_getMemberValue に時間が掛かっていそうなので
+    その部分を適当に修正する→ 12.50 ms 迄減った。
+    実に 1/4 が getMemberValue の処理だった事になる。
+  3 ev3obj_getMemberPtr も序でに弄ってみる。
+    効率化しようと考えたがなかなか難しい。11.72 ms 余り減らない。
+    (因みにメンバ登録を省略すると 8.59 ms にまで下がる。
+      実に残り時間の 41% がこのメンバ追加に費やされている…
+      →と思ったが色々調べたらメモリ解放処理の時間が省略されただけのようだ。
+      なので、8.59 まで下がったのは幻。)
+    多少弄ったら 11.09 ms になった。殆ど変更はしていないのだが。
+    (文字連結などにも結構時間が掛かるのかも知れない)。
+
+P9 制御構文式
+
+  この実装では制御構文も全て式として処理し、他の式の部分式になる事を許可する。
+  しかしその場合に解釈が曖昧になる表現が存在する。
+
+  # 例えば
+  #   x=if(cond)expr1;else expr2;
+  #   -expr3;
+  # の様なプログラムがあるとする。これは以下の様に解釈する事も出来る。
+  #   x=(if(cond)expr1;else expr2;)-expr3;
+  # そしてこれは恐らく意図した動作ではない。
+  # ここで ; についての取り扱いを明確にしておく必要がある。
+  #
+  # 例えば、; は一つの文の中に直接登場しては行けないなど。
+  # この様な制限を課すと、
+  #   x=if(cond)expr1;else expr2;
+  # の様な構文はそもそも不適合になる(x=**; の次に else 節が来ていると解釈される)。
+  # 同等の表現をする構文について考えてみる。
+  #   例: x=(if(cond)expr1;else expr2); 括弧で括れば else のかかる先は明確である。
+  #   例: x=if(cond)expr1 else expr2; そもそも else の前に文を要求しなくても良い。
+  # 括弧で括る場合に関しては自然に対応できるとして、
+  # 例2の場合は else の前に式が来る事を許せば何も問題はない。
+  #
+  # 同様の事を do ... while() にも適用する事にする。
+  # do/while の場合は do の後に必ず while が来るので曖昧性は無いが、
+  # 文法の統一性とプログラムの見やすさから同様の条件を課す。つまり、
+  #   x=do expr1; while(cond);
+  # は不適格とする。do 文の直後に while が来た時にだけ両者が結合するので、
+  # 上の様なプログラムだと do に対応する while が形成されない為である。
+  # 代わりに以下の様な構文を使う事を要求する。
+  #   x=(do expr1; while(cond);)
+  #   x=do expr1 while(cond);
+  #   x=do{expr1}while(cond);
+
+  結局の所、; は必ず文を終端する事にする、という事だ。
+  追記として
+    1 else の前に式がある場合は if()expr 式であるべき
+    2 else の前に式がない場合は 直前の文は if 文であるべき
+    3 while の前に式がある場合は do 式であるべき
+    4 while の前に do 文がある場合は do..while に結合を行う
+    5 while の前に do 文もない場合は while 文として解釈する
+  何れの場合も最内の do/if に結合するべきである
+    例 if()if()expr;else expr2;
+    例 do do expr1 while(); while();
+  また do 文は解析スタック上でしか許さない。
+    つまり、reduce の際に検査して跳ねる。
+
+  # しかしそれでも未だ問題はある。
+  #   if(cond){expr1}else{expr2}
+  #   ++x;
+  # 上記の様なコードは
+  #   if(cond){expr1}else({expr2}++ x);
+  # と解釈されて文法エラーを引き起こす。
+  # これを防ぐ為には
+  #   a 例え {} で囲んでいても最後に ; で終端する:
+  #     これは既存の慣れ親しんだコードを破壊する。
+  #     既存の言語に慣れた人がバグを作り出す危険性がある。
+  #     {}; が二つの独立した文なのかそうでないのか曖昧。
+  #   b 複文 {} は専ら文末にしか使う事は出来ない事にする。
+  #     式として解釈して欲しければ、
+  #     考えてみれば () を使えば良いのである。
+  # 
+  #     但し、オブジェクト構築式の {} や関数式の {} は例外とする。
+  #     (これは読み取りの時点で、そうだと分かるので問題にはならない)
+  # b を採用する事にする。
+
+  つまり複文 {} の直後にはやはり必ず文を終端するという事である。
+
+  # if() prefix を構築できた後は上記の様にして解析できる。
+  # しかし if() 自体はどの様に構築すれば良いだろうか。
+  # というのも if prefix は値を食って値になるのではなく、値を食って prefix になる。
+  # 従って通常の reduce の場合に処置する事ができない。
+  # 現在の仕組みではこの様な物に対応可能だろうか。
+  #
+  # これの対応は簡単である。EXPR on EXPR のエラーの箇所で、
+  # 既にある EXPR について 0 reduce を試みて、
+  # これが prefix に化けるかどうかを確認すれば良い。
+  # (正しく動く様にする為には stype を設定しなければならない。
+  # また、途中で PREF に化ける PREF があるという事は、
+  # reduce の途中で reduce が終了し式が得られないという事を意味する。
+  #
+  # と思ったが以下の様な場合は問題になる。
+  # if(a)+1;
+  # + は単項演算子でも二項演算子でもある。本当は単項演算子として作用して欲しいが、
+  # EXPR on EXPR の状況で if() を構築する事にしていると駄目だ。
+  # 上の状況で + が二項演算子として解釈されて EXPR on EXPR の状況にならない為だ。
+  # 
+  # もっと自然な方法を考える。本来
+  #   if(a)
+  # まで読んだ時点で既に if() の構造は確定している。
+  # 従って、この時点で [if(a)] にする方法を考えるべきである。
+  # if を PREF とする時、以下の様に動作する。
+  #   PREF(if) MARK(lparen) EXPR(a) | MARK(rparen)
+  #   PREF(if) MARK(lparen) | EXPR(a) MARK(rparen) (reduce)
+  #   PREF(if) | MARK(lparen) EXPR(a) MARK(rparen) (pop)
+  #   PREF(if) EXPR((a)) |                         (push)
+  # 結局の所 push の瞬間に処理するのが良いのだろうか。また別の場合を考える。
+  #   if!(a)
+  # である。
+  #   PREF(if) PREF(!) MARK(lparen) EXPR(a) | MARK(rparen)
+  #   中略
+  #   PREF(if) PREF(!) EXPR((a))
+  # これだと push の際に考えると言っても綺麗な実装にはならない。
+  # 
+  # 個々に対処するよりは、演算子の優先順位を指定してより柔軟な解析を行える様にしたい。
+  # 例えば IF 文という物を考え、IF よりも強力な演算子 (# とする) も存在するとする。
+  #   IF a # b + c
+  # は IF(a#b)(+c) と解釈されて欲しい。今優先度を #=3 IF=2 +=1 とする。
+  #   PREF(IF) EXPR(a) | OP(#)
+  # の時は普通に reduce すれば
+  #   PREF(IF) PREF(a#)
+  # となる。更に続けると…。
+  #   PREF(IF) EXPR(a#) EXPR(b) | OP(+)
+  # ここで普通に評価すると OP(+) の左辺に EXPR があるので OP(+) は二項演算子になり、reduce が実施される。
+  #   | PREF(IF(a#b)) OP(+)
+  # 困った事に EXPR が得られると思っていたのに PREF が得られてしまう。これでは二項演算子 + の左辺にできない。
+  # というのが今回の問題点になっている。
+  # 
+  # 要するに OP(+) が二項演算子かどうか判定する際に判断を誤るのが原因である。
+  # 因みに正しく単項演算子と判定できたとしても、今度は EXPR on EXPR の状況になる。
+  # 従って、EXPR on EXPR の際に左 EXPR を reduce して PREF に変換する対策も必要である。
+
+  ■ev3parse_stack_reduceSentences
+    現在 pop 時に SNT の reduction を行っているが、
+    実は push 時に行った方が実装として綺麗なのではないだろうか。
+    これは EV3_ST_SENT が何処で設定されるかによる。
+    EV3_ST_SENT が設定される場所が出尽くしてから再考する。
+
+  以下の様にする:
+
+  1 仮定 prefix は式を食う (prefix は食わない)
+  2 仮定 式を食った後に別の式になるか別のprefixになるかは、そのprefixがstackに入る時点で確定しているとする
+    →別の式になる物を XPREF とし 別のprefix になる物を PPREF として区別する。
+      因みに PPREF が生成する prefixがXPREFなのかPPREFなのかは問わない(stack に push される時点で確定すれば良いのだ)。
+  3 優先度pを与えてreduceした時に、式になるかprefixになるかを判定する関数を作る事ができる。
+    (1) topがXPREF/PPREFの時はどう reduce しても EXPR にはならない→false
+    (2) topがEXPRの時は、優先度の高いXPREF(p<=p(xpref))を食えるだけ食う事にする。
+    (3) 最後に現れたのが PPREF でかつ、そのPPREFの優先度が高い(p<=p(ppref))時は reduce の挙げ句に prefix になる→false
+    (4) それ以外ならば最終的に EXPR になると予想できる→true
+  4 二項演算子・単項演算子の判定の時は top が EXPR かどうかではなく
+    3 で実装した関数(二項演算子の優先度を渡す)で「最終的にEXPRになるかどうか」を取得して決める。
+    (a) 特に、二項演算子と判定された場合は今迄通りに reduce を行う。
+  #  (b) 単項演算子として判定された時にも reduce を実行して prefix を生成し push する。
+  #      (∵単項演算子XPREFを EXPR の上に push できるのは EXPR が最終的に PREF に化ける時だけだから)。
+    (b) reduce はより優先順位の低い物 (; 等) で reduce した時に起こるか、
+        reduce しないと不自然な物 (EXPR/PREF on EXPR) が push される時に実施する。
+        (+ が単項演算子に確定した場合は PREF が push されるのでこれに含まれる。)
+        
+
+  また関数宣言
+    function a(){}
+  は許可しない。これが式なのか文なのかについて、
+  曖昧な判断基準を持ち出したくないからである。
+  つまり、関数の宣言は常に
+    var a=function(){};
+    var a=()=>{};
+  等の形を取る事にする。
+  function は評価時の文脈(クロージャ)を捕獲する。
+  lambda も同様に捕獲を行うが、実行時に直接その上で実行する点でより透過的である。
+
+
+  
+
+return や break を実現する方法は?
+
+
+-------------------------------------------------------------------------------
+計画一覧(終了)
+
+P0 awk でオブジェクト指向を実現する方法は?
+  + 一つの巨大な連想配列 obj_universe に全てを入れる
+  + ポインタの代わりに obj_universe のキーを取り扱う
+  + GCは参照カウントで誤魔化す。
+
+  + オブジェクトには以下の種類がある
+    CLASS_NULL
+      TYPE_NULL
+    CLASS_SCAL
+      TYPE_STR
+      TYPE_NUM
+      TYPE_REF
+    CLASS_BYREF
+      TYPE_OBJ
+  + CLASS_BYREF はメンバを持つ事が出来る。
+    現状、CLASS_NULL, CLASS_SCAL はメンバを持つ事ができない。
+  + オブジェクトのメンバとして保持できるのは CLASS_NULL, CLASS_SCAL のみである。
+    CLASS_BYREF を代入する時は CLASS_SCAL/TYPE_REF に変換してから代入する。
+  + CLASS_SCAL に対する参照は作成しない
+
+  -obj_universe の構造
+   -オブジェクト・メンバで共通の物
+    obj_universe[ptr]                値
+    obj_universe[ptr,UKEY_CLS]       CLASS値
+    obj_universe[ptr,UKEY_TYP]       TYPE値
+   -オブジェクト固有の物
+    obj_universe[ptr,UKEY_REF]       参照カウント
+   -CLASS_BYREFオブジェクト固有の物
+    obj_universe[ptr,UKEY_MEM_CNT]   メンバ数
+    obj_universe[ptr,UKEY_MEM_KEY,i] メンバ名リスト
+    obj_universe[ptr,UKEY_MEM,key]   メンバ連想配列
+
+    ※メンバの場合 ptr = obj SUBSEP UKEY_MEM SUBSEP key である。
+
+P1 連想配列はどの様に表現するか [完]
+  要素に参照を保持する? or 直接値を保持する?
+
+  直接値を保持する方式だと連想配列に連想配列を入れられないので駄目。
+  かと言って参照を保持する方式にすると値しか代入しない場合に無駄。
+  しかし、参照・オブジェクト化が必要になった時に昇格する様にすると、PHPと同様の謎の挙動になる。
+  →参照型か値型かを厳密に管理する様にし途中で変化しない様にする必要がある。
+  というか基本的には全て参照型なのでは…。いや、参照されている実体は値型なのでは…。何だか良く分からなくなってきた…。整理する。
+
+  オブジェクト自体の値は値として格納する。
+  オブジェクトのメンバは数値(TYPE_NUM)・文字列(TYPE_STR)・オブジェクト参照(TYPE_REF)のどれかを取る。
+  メンバに代入された時に、参照として代入される物 (CLASS_BYREF) と値として代入される物 (CLASS_SCAL) の2種類がある。
+  オブジェクトのメンバ (TYPE_STR, TYPE_NUM, TYPE_REF) は常に CLASS_SCAL である。
+
+P2 ヒープを指定してその上でオブジェクトを構築する様にできないか? [却下]
+  一時的にオブジェクトを複数作成して、それらを一括で始末するという使い方をする場合、
+  obj_universe 上にオブジェクトを作成するのではなく、外から指定した配列上にオブジェクトを構築し、終わったらその配列毎削除すれば良いのではないか?
+  ×単独のオブジェクトならば obj_universe 以外の配列上に構築する事に意味があるが、
+    他の配列の上への参照を保持する事ができない、参照カウントの整合性を保つ必要がある、などの理由からこれはまともに実装できない。
+  →メンバとして BYREF を許す様にすれば、obj_universe 上にヒープオブジェクト heap を一個作って、
+    そのメンバとして様々なオブジェクトを構築できる。その後で heap もろとも obj_delete してしまえば良い。
+  →これに関しては取り敢えず却下とする。
+
+P3 インタプリタから操作できる様にする。
+  インタプリタから操作できる様にする為には、唯単にメンバの内容を取得するのではなく、
+  「メンバ参照」を取り扱える様にしなければならない。例えば以下のような場合:
+  obj1.test=1234; # obj1.test に代入をする為には obj1 と test の両方を記憶する必要がある
+  obj2.func();    # 関数 func(this=obj2) として呼び出さなければならないので obj2 と func の両方を記憶する必要がある
+  よく考えたら普通の変数名も参照として扱うべきである。
+
+P4 値型として様々な物を取り扱う事が出来る様にする。
+  型システムを作る。→ obj_type に型情報を全て含ませる事にした。
+
+  更に…UKEY_CLS と UKEY_TYP の両方を記録しているのは無駄ではないか。
+  型情報さえしっかりしていれば UKEY_CLS は不要に思われる。
+  →UKEY_CLS を削除し型情報から取得する様に変更。
+
+P5 obj_unsetMember の正しい実装
+  今の実装(ただ _obj_destruct するだけ)だと依然としてメンバとして列挙されるので駄目。
+  それどころか同名のメンバに再度代入しようとするとキーが重複して登録される。
+  A TYPE_UNDEFINED 的な物を作るべきか? → 色々な箇所で条件判定が増えるので良くない。
+  B キーリストから削除する方法を考える。
+    詰める様にすると unset の度にデータを移動しなければならず重い。
+  C キーリストの当該項目に NULL を代入する様にすると unset/set した回数だけリストが疎になる。
+    更に、空白 "" のメンバと NULL メンバを区別する方法がないのでこれも好ましくない。
+
+  現状では B を採用する。B はキーリストからメンバを線形探索するので重い。
+  将来的には メンバ名→キーリスト内の序数 のマッピングも記録する様にして最適化する。
+  →以外と修正箇所が少なかった(get_member_ptr のみ)ので、その様に修正した。
