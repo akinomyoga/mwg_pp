@@ -2159,6 +2159,8 @@ function ev3eval_nativeFunctionFunction_call(dst,obj,fname,args, _value,_expr,_s
     ev3eval_ctx_save(_ctxSave);
     ev3eval_ctx_scope=ev3obj_new();
     ev3obj_assignScal(ev3eval_ctx_scope SUBSEP UKEY_PROTO,TYPE_REF,_scope);
+    ev3obj_setMemberScal(ev3eval_ctx_scope,"+this",TYPE_REF,ev3obj_getMemberValue(args,"+0"));
+    ev3obj_setMemberScal(ev3eval_ctx_scope,"+arguments",TYPE_REF,ev3obj_getMemberValue(args,"+1"));
     _returnValue=ev3eval_expr(_ctxSave,_expr);
     ev3obj_release(ev3eval_ctx_scope);
     ev3eval_ctx_restore(_ctxSave);
@@ -2868,7 +2870,7 @@ function ev3eval_expr(ctx,x, _xtype,_oword,_xlhs,_xrhs,_xarg,_ret, _arr,_i,_iN,_
     _oword=ev3obj_getMemberValue(x,"oword");
 
     # 変数の宣言されている位置
-    _owner=ev3proto_getVariableOwner(_scope,_oword);
+    _owner=ev3proto_getVariableOwner(_scope,"+" _oword);
     if(_owner==NULL)_owner=ev3eval_ctx_root;
     
     _ret=ev3obj_new_scal(EV3_TYPE_LVALUE);
