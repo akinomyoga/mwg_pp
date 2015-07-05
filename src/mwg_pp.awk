@@ -1733,7 +1733,7 @@ function dependency_generate(output,target, _i,_iMax){
   }else{
     print target ": " m_rfile " \\" > output
     _iMax=m_dependency_count-1;
-    for(_i=1;_i<_iMax;_i++)
+    for(_i=0;_i<_iMax;_i++)
       print "  " m_dependency[_i] " \\" >> output;
     print "  " m_dependency[_iMax] >> output;
   }
