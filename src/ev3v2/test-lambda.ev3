@@ -3,7 +3,7 @@
 __EV3_CHECK_HEAP__=1;
 
 puts("== lambda ==");
-assert=()=> eval(arguments[0])||printf(sgr_error+"assertion failed\e[m: %sexpr = (%s).\n",arguments[1]!=NULL?arguments[1]+"\n  ":"",arguments[0]);
+assert=(condition,message)=> eval(condition)||printf(sgr_error+"assertion failed\e[m: %sexpr = (%s).\n",message!=NULL?message+"\n  ":"",condition);
 sgr_error="\e[1;32m";
 assert('false',"this message is expected");
 sgr_error="\e[1;31m";
@@ -11,6 +11,10 @@ assert('1');
 assert('!null');
 
 print=puts;
+
+f=(a,b)=>a+b;
+assert('f(1,2)==3');
+assert('f(3,4)==7');
 
 f=()=>{r+=":"+(++x)};
 r=x=1;f();f();print(r);
