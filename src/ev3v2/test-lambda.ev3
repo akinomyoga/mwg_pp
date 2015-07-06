@@ -1,6 +1,5 @@
 #!/usr/bin/env ./ev3v2.awk
 // -*- mode:c++ -*-
-__EV3_CHECK_HEAP__=1;
 
 puts("== lambda ==");
 assert=(condition,message)=> eval(condition)||printf(sgr_error+"assertion failed\e[m: %sexpr = (%s).\n",message!=NULL?message+"\n  ":"",condition);
@@ -11,6 +10,7 @@ assert('1');
 assert('!null');
 
 print=puts;
+assert('(1==1)===true');
 
 f=(a,b)=>a+b;
 assert('f(1,2)==3');

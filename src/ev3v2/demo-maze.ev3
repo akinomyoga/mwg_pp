@@ -24,8 +24,9 @@ searches=[
 search = (x,y) => {
   cell[x][y]=true;
   var buff=[0,1,2,3];
+  var d,var i;
   for(var c=4;c>=1;c--){
-    var d=buff[var i=rand()*c|0];
+    d=buff[i=rand()*c|0];
     searches[d](x,y);
     removeAt(buff,i,c);
   }
@@ -52,3 +53,6 @@ for(y=0;y<NY;y++){
   draw_ykabe(y);
 };
 puts(result);
+
+removeAt=null;check=null;searches=null;search=null;
+draw_ykabe=draw_xkabe=null;
