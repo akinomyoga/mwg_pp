@@ -1,9 +1,6 @@
 #!/usr/bin/env ./ev3v2.awk
 // -*- mode:js -*-
 
-removeAt=(arr,i,n)=>{
-  for(;i<n-1;i++)arr[i]=arr[i+1];
-};
 srand();for(i=10+rand()*10%20|0;i--;)rand();
 
 NX=10;NY=10;
@@ -24,12 +21,8 @@ searches=[
 search = (x,y) => {
   cell[x][y]=true;
   var buff=[0,1,2,3];
-  var d,var i;
-  for(var c=4;c>=1;c--){
-    d=buff[i=rand()*c|0];
-    searches[d](x,y);
-    removeAt(buff,i,c);
-  }
+  for(var c=4;c>=1;c--)
+    searches[buff.splice(rand()*c,1)[0]](x,y);
 };
 
 search(0,0);
@@ -54,5 +47,5 @@ for(y=0;y<NY;y++){
 };
 puts(result);
 
-removeAt=null;check=null;searches=null;search=null;
-draw_ykabe=draw_xkabe=null;
+puts("["+kabe.join()+"]");
+check=null;searches=null;search=null;draw_ykabe=draw_xkabe=null;
