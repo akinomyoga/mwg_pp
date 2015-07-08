@@ -85,7 +85,7 @@ function _ev3_error(source,message){
 # ev3obj
 
 function _ev3obj_error(message){
-  _ev3_error("obj",message);
+  _ev3_error("ev3obj",message);
 }
 function ev3obj_initialize(){
   TRUE=1;
@@ -242,6 +242,12 @@ function ev3obj_univ(key, defaultValue){
   else
     return defaultValue;
 }
+
+#------------------------------------------------------------------------------
+# Primitive Operations of Memory Management
+
+# Allocation/Free and Reference Count
+
 function _ev3obj_create( _ptr){
   _ptr="#" ev3obj_index++;
   while(_ptr SUBSEP UKEY_REF in ev3obj_universe)_ptr="#" ev3obj_index++;
@@ -249,6 +255,30 @@ function _ev3obj_create( _ptr){
   ev3obj_universe[_ptr,UKEY_TYP]=TYPE_NULL; # unknown
   return _ptr;
 }
+function _ev3obj_dec(ptr, _kref){
+  sub(ev3obj_rex_subkey,"",ptr);
+  _kref=ptr SUBSEP UKEY_REF;
+  if(!(_kref in ev3obj_universe)||ev3obj_universe[_kref]<=0){
+    _ev3_assert(FALSE,"BUG (_ev3obj_dec)","decrementing the reference count of an invalid pointer (ptr = " ev3obj_dump(ptr) ")");
+    return;
+  }
+  if(--ev3obj_universe[_kref]<=0){
+    _ev3obj_destruct(ptr);
+    delete ev3obj_universe[_kref];
+  }
+}
+function _ev3obj_inc(ptr, _kref){
+  sub(ev3obj_rex_subkey,"",ptr);
+  _kref=ptr SUBSEP UKEY_REF;
+  if(!(_kref in ev3obj_universe)||ev3obj_universe[_kref]<=0){
+    _ev3_assert(FALSE,"BUG (_ev3obj_inc)","incrementing the reference count of an invalid pointer (ptr = " ev3obj_dump(ptr) ")");
+    return;
+  }
+  ++ev3obj_universe[_kref];
+}
+
+# Destruction
+
 function _ev3obj_destruct(ptr ,_type,_cls,_iN,_i,_key,_memptr){
   _type=ev3obj_univ(ptr SUBSEP UKEY_TYP);
   if(_type=="")return;
@@ -295,53 +325,14 @@ function _ev3obj_destruct(ptr ,_type,_cls,_iN,_i,_key,_memptr){
   delete ev3obj_universe[ptr];
   delete ev3obj_universe[ptr,UKEY_TYP];
 }
-function _ev3obj_dec(ptr, _kref){
-  sub(ev3obj_rex_subkey,"",ptr);
-  _kref=ptr SUBSEP UKEY_REF;
-  if(!(_kref in ev3obj_universe)||ev3obj_universe[_kref]<=0){
-    _ev3_assert(FALSE,"BUG (_ev3obj_dec)","decrementing the reference count of an invalid pointer (ptr = " ev3obj_dump(ptr) ")");
-    return;
-  }
-  if(--ev3obj_universe[_kref]<=0){
-    _ev3obj_destruct(ptr);
-    delete ev3obj_universe[_kref];
-  }
-}
-function _ev3obj_inc(ptr, _kref){
-  sub(ev3obj_rex_subkey,"",ptr);
-  _kref=ptr SUBSEP UKEY_REF;
-  if(!(_kref in ev3obj_universe)||ev3obj_universe[_kref]<=0){
-    _ev3_assert(FALSE,"BUG (_ev3obj_inc)","incrementing the reference count of an invalid pointer (ptr = " ev3obj_dump(ptr) ")");
-    return;
-  }
-  ++ev3obj_universe[_kref];
-}
 
-# function ev3obj_checkIfRoot(obj){
-#   if(ev3obj_univ(obj SUBSEP UKEY_REF)<=0){
-#     _ev3obj_error("obj <" obj "> is nullptr");
-#     return 0;
-#   }
-#   return 1;
-# }
-# function ev3obj_checkNonNull(obj){
-#   if(ev3obj_univ(obj SUBSEP UKEY_TYP)==""){
-#     _ev3obj_error("obj <" obj "> is nullptr");
-#     return 0;
-#   }
-#   return 1;
-# }
-# function ev3obj_checkByRef(obj){
-#   if(ev3obj_univ(obj SUBSEP UKEY_TYP)!=CLASS_BYREF){
-#     _ev3obj_error("not byref object");
-#     return 0;
-#   }
-#   return 1;
-# }
+# Assignment
 
 # 強制代入(チェック無し)
 function ev3obj_assignScal(dst,type,value, _i,_iN,_key){
   # manage reference count
+  #   先に inc(value) してから destruct(dst) しないと
+  #   value の参照が尽きて破壊される可能性があるので注意する。
   if(type==TYPE_REF)
     _ev3obj_inc(value);
   if(dst SUBSEP UKEY_TYP in ev3obj_universe)
@@ -375,6 +366,61 @@ function ev3obj_assignObj(dst,src, _cls,_type,_i,_iN,_key){
 }
 
 #------------------------------------------------------------------------------
+# Create/Delete Utilities
+
+function ev3obj_alloc(){
+  return _ev3obj_create();
+}
+function ev3obj_new( _obj){
+  _obj=_ev3obj_create();
+  ev3obj_universe[_obj,UKEY_TYP]=TYPE_OBJ;
+  return _obj;
+}
+function ev3obj_newObj(obj, _obj){
+  _obj=_ev3obj_create();
+  ev3obj_assignObj(_obj,obj);
+  return _obj;
+}
+function ev3obj_newScal(type,value, _obj){
+  _obj=_ev3obj_create();
+
+  # expanded ev3obj_assignScal(_obj,type,value);
+  if(type==TYPE_REF)_ev3obj_inc(value);
+  ev3obj_universe[_obj,UKEY_TYP]=type;
+  ev3obj_universe[_obj]=value;
+
+  return _obj;
+}
+
+function ev3obj_placementNew(obj,memberName,rhs, _memptr,_ret){
+  _memptr=ev3obj_getMemberPtr(obj,memberName,TRUE);
+  if(_memptr==NULL)return;
+
+  _ret=_ev3obj_create();
+  if(rhs!=NULL)
+    ev3obj_assignObj(_ret,rhs);
+  else
+    ev3obj_universe[_ret,UKEY_TYP]=TYPE_OBJ;
+
+  ev3obj_assignScal(_memptr,TYPE_REF,_ret);
+  ev3obj_release(_ret);
+  return _ret;
+}
+
+function ev3obj_delete(obj){
+  _ev3obj_destruct(obj);
+  _ev3obj_dec(obj);
+}
+function ev3obj_capture(obj){
+  _ev3obj_inc(obj);
+}
+function ev3obj_release(obj){
+  _ev3obj_dec(obj);
+}
+
+#------------------------------------------------------------------------------
+# Members
+
 # 以下は不要 or もっと別の実装にするべきかもしれない。これは考えながら。
 
 # function ev3obj_isMemberNameValid(obj,memberName, _mt){
@@ -409,7 +455,7 @@ function ev3obj_assignObj(dst,src, _cls,_type,_i,_iN,_key){
 #   }
 # }
 
-function ev3obj_getMemberPtr(obj,memberName,creates, _type,_cls,_memptr,_mindex){
+function ev3obj_getMemberPtr(obj,memberName,creates, _type,_cls,_memptr,_mindex,_errorAt){
   if(!(obj SUBSEP UKEY_TYP in ev3obj_universe)){
     _ev3_error("ev3obj","ev3obj_getMemberPtr(obj = " obj ", memberName = '" memberName "', creates = " creates "), obj is undefined");
     return;
@@ -439,7 +485,8 @@ function ev3obj_getMemberPtr(obj,memberName,creates, _type,_cls,_memptr,_mindex)
   }else if(_cls==CLASS_SCAL){
     _ev3obj_error("scalar value (" ev3obj_dump(obj) ") cannot have a member '" memberName "'.");
   }else{
-    _ev3obj_error("unknown object class obj = " ev3obj_dump(obj) ", memberName = '" memberName "'.");
+    _errorAt="ev3obj_getMemberPtr(obj = " ev3obj_dump(obj) ", memberName = '" memberName "')";
+    _ev3obj_error("unknown object class: obj::typeid = " _type ", obj::typeid::class = " _cls ". @" _errorAt);
   }
 }
 function ev3obj_setMemberScal(obj,memberName,type,value, _memptr){
@@ -459,7 +506,7 @@ function ev3obj_tryGetMemberValue(obj,memberName,defaultValue, _memptr){
   if(_memptr in ev3obj_universe)return ev3obj_universe[_memptr];
   return defaultValue;
 }
-function ev3obj_getMemberValue(obj,memberName,unchecked, _memptr){
+function ev3obj_getMemberValue(obj,memberName, _memptr){
   # @opti2
   _memptr=obj SUBSEP UKEY_MEM SUBSEP memberName;
   if(_memptr in ev3obj_universe)return ev3obj_universe[_memptr];
@@ -501,45 +548,7 @@ function ev3obj_unsetMember(obj,memberName, _type,_ord,_count,_tkey,_memptr){
   }
 }
 
-function ev3obj_new(obj, _ret){
-  _ret=_ev3obj_create();
-  if(obj!=NULL)
-    ev3obj_assignObj(_ret,obj);
-  else
-    ev3obj_universe[_ret,UKEY_TYP]=TYPE_OBJ;
-  return _ret;
-}
-function ev3obj_new_scal(type,value, _obj){
-  _obj=_ev3obj_create();
-  ev3obj_assignScal(_obj,type,value);
-  return _obj;
-}
-
-function ev3obj_placementNew(obj,memberName,rhs, _memptr,_ret){
-  _memptr=ev3obj_getMemberPtr(obj,memberName,TRUE);
-  if(_memptr==NULL)return;
-
-  _ret=_ev3obj_create();
-  if(rhs!=NULL)
-    ev3obj_assignObj(_ret,rhs);
-  else
-    ev3obj_universe[_ret,UKEY_TYP]=TYPE_OBJ;
-
-  ev3obj_assignScal(_memptr,TYPE_REF,_ret);
-  ev3obj_release(_ret);
-  return _ret;
-}
-
-function ev3obj_delete(obj){
-  _ev3obj_destruct(obj);
-  _ev3obj_dec(obj);
-}
-function ev3obj_capture(obj){
-  _ev3obj_inc(obj);
-}
-function ev3obj_release(obj){
-  _ev3obj_dec(obj);
-}
+#------------------------------------------------------------------------------
 
 function ev3obj_toString(obj, _type,_cls,_value,_name){
   if(!(obj SUBSEP UKEY_TYP in ev3obj_universe))return "undefined";
@@ -761,7 +770,7 @@ function ev3proto_callFunction(dst,obj,fun,args, _ftype,_fapply,_args2,_ret){
     return ev3type_Function_prototype_apply(dst,fun,obj,args);
 
   # fun = object -> call operator()
-  _fapply=ev3obj_new();
+  _fapply=ev3obj_alloc();
   if(ev3proto_getProperty(fun,"!()",_fapply)){
     # eval("fun.operator()(obj,args)")
     _args2=ev3proto_new(ev3type_Array_prototype);
@@ -1014,7 +1023,7 @@ function dbg_obj1(){
 }
 
 #==============================================================================
-# Scan
+# ev3scan/ev3parse
 
 function ev3scan_init_operator(opname,optype,opprec,flags){
   ev3scan_op[opname]=optype;
@@ -2050,6 +2059,9 @@ function ev3parse(expression, _wlen,_words,_stack,_i,_t,_w,_stop,_s,_p,_sl,_styp
   return _s;
 }
 
+#==============================================================================
+# ev3eval
+
 #------------------------------------------------------------------------------
 #
 # P6 ev3eval_expr の部分式も全て独立実体として定義しているのは非効率?
@@ -2118,11 +2130,7 @@ function ev3eval_initialize(_proto, _context){
   ev3obj_setMemberScal(_context,"+rand" ,TYPE_NFUNC,"math::rand" );
   ev3obj_setMemberScal(_context,"+srand",TYPE_NFUNC,"math::srand");
 
-  _proto=ev3type_Array_prototype=ev3obj_placementNew(ev3proto_world,"Array.prototype");
-  ev3obj_setMemberScal(_proto,"+splice",TYPE_NFUNC,"Array#splice");
-  ev3obj_setMemberScal(_proto,"+join",TYPE_NFUNC,"Array#join");
-  ev3obj_setMemberScal(_proto,"+length",TYPE_NUM,0);
-  #ev3obj_setMemberScal(_proto,"![]",TYPE_NFUNC,"Array#![]");#■
+  ev3type_Array_initialize(ev3proto_world);
 }
 function ev3eval_finalize(){
 }
@@ -2421,6 +2429,15 @@ function ev3type_Array_dispatch(dst,obj,fname,args, _sep,_len,_vret,_i){
   }
 }
 
+## @param[in] world Array.prototype を定義する先のオブジェクトを指定します。
+function ev3type_Array_initialize(world, _proto){
+  _proto=ev3type_Array_prototype=ev3obj_placementNew(world,"Array.prototype");
+  ev3obj_setMemberScal(_proto,"+splice",TYPE_NFUNC,"Array#splice");
+  ev3obj_setMemberScal(_proto,"+join",TYPE_NFUNC,"Array#join");
+  ev3obj_setMemberScal(_proto,"+length",TYPE_NUM,0);
+  #ev3obj_setMemberScal(_proto,"![]",TYPE_NFUNC,"Array#![]");#■
+}
+
 #------------------------------------------------------------------------------
 # TYPE_FUNC
 
@@ -2462,8 +2479,7 @@ function ev3type_Function_prototype_apply(pret,pfun,pthis,pargs, _expr,_closure,
     _expr=ev3obj_universe[_expr];
 
   # create scope
-  _scope=ev3obj_new();
-  ev3obj_assignScal(_scope SUBSEP UKEY_PROTO,TYPE_REF,_closure);
+  _scope=ev3proto_new(_closure);
   ev3obj_setMemberScal(_scope,"+this",TYPE_REF,pthis);
   ev3obj_setMemberScal(_scope,"+arguments",TYPE_REF,pargs);
   _narg=ev3obj_getMemberValue(pargs,"+length");
@@ -2641,23 +2657,21 @@ function ev3eval_tostring(obj, _type,_fun,_ret,_value,_args,_r){
   #if(ev3obj_type[ev3obj_universe[obj,UKEY_TYP],EV3OBJ_TKEY_CLS]==CLASS_BYREF){
   if(ev3obj_univ(obj SUBSEP UKEY_TYP)==TYPE_REF&&ev3obj_univ(ev3obj_universe[obj] SUBSEP UKEY_TYP)==TYPE_OBJ){
     #■専用の構造体or要素数3の配列の型を作成し一括で管理する?
-    _fun=ev3obj_new();
-    _ret=ev3obj_new();
-    _args=ev3obj_new();
-
+    _fun=ev3obj_alloc();
     ev3proto_getProperty(obj,"+toString",_fun);
 
-    ev3obj_setMemberScal(_args,"+length",TYPE_NUM,0);
+    _ret=ev3obj_alloc();
+    _args=ev3proto_new(ev3type_Array_prototype);
     _r=ev3proto_callFunction(_ret,obj,_fun,_args);
+    ev3obj_release(_args);
 
     _value=ev3obj_toString(_ret);
-
-    ev3obj_release(_args);
     ev3obj_release(_ret);
+
     ev3obj_release(_fun);
     if(_r)return _value;
   }
-
+  
   return ev3obj_toString(obj);
 }
 function ev3eval_equals(lhs,rhs,exact, _ltype,_rtype,_lclass,_rclass,_i,_iN){
@@ -2708,7 +2722,7 @@ function ev3eval_evalBinaryExpressionByValue(oword,lhs,rhs, _ltype,_rtype,_rlhs,
       _rtype=ev3obj_univ(rhs SUBSEP UKEY_TYP);
       if(_ltype==TYPE_STR||_rtype==TYPE_STR){
         _vret=ev3eval_tostring(lhs) ev3eval_tostring(rhs);
-        return ev3obj_new_scal(TYPE_STR,_vret);
+        return ev3obj_newScal(TYPE_STR,_vret);
       }
     }
 
@@ -2727,7 +2741,7 @@ function ev3eval_evalBinaryExpressionByValue(oword,lhs,rhs, _ltype,_rtype,_rlhs,
     else if(oword=="<<")_vret=lshift(_vlhs,_vrhs);
     else if(oword==">>")_vret=rshift(_vlhs,_vrhs);
 
-    return ev3obj_new_scal(TYPE_NUM,_vret);
+    return ev3obj_newScal(TYPE_NUM,_vret);
   }
 
   # obj<obj
@@ -2846,7 +2860,7 @@ function ev3eval_expr_binary_operator(ctx,oword,xlhs,xrhs, _lhs,_rhs,_ret,_membe
         return ev3eval_null();
       }
 
-      _ret=ev3obj_new_scal(EV3_TYPE_LVALUE);
+      _ret=ev3obj_newScal(EV3_TYPE_LVALUE);
       ev3obj_setMemberObj(_ret,"obj",_vlhs);
       ev3obj_setMemberScal(_ret,"memberName",TYPE_STR,_member);
       ev3obj_release(_lhs);
@@ -2862,7 +2876,7 @@ function ev3eval_expr_binary_operator(ctx,oword,xlhs,xrhs, _lhs,_rhs,_ret,_membe
       return ev3eval_null();
     }
   }else if(oword ~ /^=>$/){
-    _ret=ev3obj_new_scal(TYPE_NULL);
+    _ret=ev3obj_newScal(TYPE_NULL);
     if(ev3obj_getMemberValue(xlhs,"xtype")==EV3_WT_CLS&&ev3obj_getMemberValue(xlhs,"oword")=="()"){
       ev3type_Function_constructor(_ret,ev3obj_getMemberValue(xlhs,"operand"),xrhs);
     }else{
@@ -2910,7 +2924,7 @@ function ev3eval_expr_unary_operator_v(ctx,oword,arg, _varg,_vret,_ret){
   if(oword ~ /^i/){
     # 後置演算子
     if(oword=="i++"||oword="i--"){
-      _ret=ev3obj_new(_varg=ev3eval_rvalue(arg));
+      _ret=ev3obj_newObj(_varg=ev3eval_rvalue(arg));
       _varg=ev3eval_tonumber(_varg);
       _varg=oword=="i++"?_varg+1:_varg-1;
       ev3eval_lvalueWriteScal(arg,TYPE_NUM,_varg);
@@ -2928,12 +2942,12 @@ function ev3eval_expr_unary_operator_v(ctx,oword,arg, _varg,_vret,_ret){
       if(oword=="+")_vret=_varg;
       else if(oword=="-")_vret=-_varg;
       else if(oword=="~")_vret=compl(_varg);
-      return ev3obj_new_scal(TYPE_NUM,_vret);
+      return ev3obj_newScal(TYPE_NUM,_vret);
     }
 
     if(oword=="!"){
       _varg=ev3eval_toboolean(arg);
-      return ev3obj_new_scal(TYPE_BOOL,!_varg);
+      return ev3obj_newScal(TYPE_BOOL,!_varg);
     }
 
     if(oword ~ /^(--|\+\+)$/){
@@ -2978,12 +2992,12 @@ function ev3eval_expr_functionCall(ctx,x,xtype, _arginfo,_args,_iN,_last,_oword,
         _vcallee=_callee;
       }
 
-      _ret=ev3obj_new();
+      _ret=ev3obj_alloc();
       ev3proto_callFunction(_ret,_this,_vcallee,_args);
     }else if(_oword=="[]"){
       _vcallee=ev3eval_rvalue(_callee);
-      _ret=ev3obj_new();
-      _accessor=ev3obj_new();
+      _ret=ev3obj_alloc();
+      _accessor=ev3obj_alloc();
       if(ev3proto_getProperty(_vcallee,"![]",_accessor)){
         # operator[] が overload されている時
 
@@ -3013,7 +3027,7 @@ function ev3eval_expr_functionCall(ctx,x,xtype, _arginfo,_args,_iN,_last,_oword,
     ev3obj_release(_callee);
   }else{
     _args=ev3eval_expr_evaluateArgs(ctx,x);
-    _ret=ev3obj_new_scal(TYPE_REF,_args);
+    _ret=ev3obj_newScal(TYPE_REF,_args);
     ev3obj_release(_args);
   }
 
@@ -3077,11 +3091,9 @@ function ev3eval_expr(ctx,x, _xtype,_oword,_xlhs,_xrhs,_xarg,_ret, _arr,_i,_iN,_
     _xarg=ev3obj_getMemberValue(x,"operand");
     return ev3eval_expr_unary_operator(ctx,"i" _oword,_xarg);
   }else if(_xtype==EV3_WT_VAL){
-    _ret=ev3obj_new();
-    ev3obj_assignObj(_ret,ev3obj_getMemberPtr(x,"value"));
-    return _ret;
+    return ev3obj_newObj(ev3obj_getMemberPtr(x,"value"));
   }else if(_xtype==EV3_XT_VOID){
-    return ev3obj_new_scal(TYPE_NULL);
+    return ev3obj_newScal(TYPE_NULL);
   }else if(_xtype==EV3_WT_CLS){
     # 唯の括弧
     _oword=ev3obj_getMemberValue(x,"oword")
@@ -3111,7 +3123,7 @@ function ev3eval_expr(ctx,x, _xtype,_oword,_xlhs,_xrhs,_xarg,_ret, _arr,_i,_iN,_
     _owner=ev3proto_getVariableOwner(_scope,"+" _oword);
     if(_owner==NULL)_owner=ev3eval_ctx_root;
 
-    _ret=ev3obj_new_scal(EV3_TYPE_LVALUE);
+    _ret=ev3obj_newScal(EV3_TYPE_LVALUE);
     ev3obj_setMemberScal(_ret,"obj",TYPE_REF,_owner);
     ev3obj_setMemberScal(_ret,"memberName",TYPE_STR,"+" _oword);
     return _ret;
