@@ -1,4 +1,4 @@
-#!/home/koichi/.mwg/src/mwgpp/src/ev3v2/ev3v2.awk
+#!/usr/bin/env ev3v2
 // -*- mode:c++ -*-
 
 puts("== リテラル ==");
