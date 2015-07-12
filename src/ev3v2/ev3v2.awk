@@ -766,8 +766,7 @@ function ev3proto_callFunction(obj,fun,args, _dst,_ftype,_fapply,_args2,_ret){
   }
 
   # fun = object -> call operator()
-  _fapply=ev3obj_alloc();
-  if(ev3proto_getProperty(fun,"!()",_fapply)){
+  if((_fapply=ev3proto_getProperty(fun,"!()"))){
     _args2=ev3proto_new(ev3type_Array_prototype);
     ev3obj_setMemberScal(_args2,"+length",TYPE_NUM,2);
     ev3obj_setMemberObj(_args2,"+0",obj);
@@ -794,10 +793,7 @@ BEGIN{
 }
 function _ev3proto_accessProperty_apply(obj,proto,memberName,arg,memptr){
   if(local_access_mode==EV3PROTO_ACCESS_MODE_VALUE){
-    # getter - get value
-    #print "dbg201411: get memptr = " ev3obj_dump(memptr) ", arg = " arg;
-    ev3obj_assignObj(arg,memptr);
-    return TRUE;
+    return memptr;
   }else if(local_access_mode==EV3PROTO_ACCESS_MODE_SETTER){
     # setter - get setter
     if(ev3obj_universe[memptr,UKEY_TYP]==TYPE_PROP)
@@ -842,9 +838,6 @@ function _ev3proto_accessProperty_recurse(obj,proto,memberName,arg, _type,_cls,_
     if(_proto!=NULL)return _ev3proto_accessProperty_recurse(obj,_proto,memberName,arg);
   }
 
-  if(local_access_mode==EV3PROTO_ACCESS_MODE_VALUE){
-    ev3obj_assignScal(arg,TYPE_NULL);
-  }
   return NULL;
 }
 function ev3proto_accessProperty(access_mode,obj,memberName,arg, _old_access_mode,_ret){
@@ -854,36 +847,44 @@ function ev3proto_accessProperty(access_mode,obj,memberName,arg, _old_access_mod
   local_access_mode=_old_access_mode;
   return _ret;
 }
-function ev3proto_getProperty(obj,memberName,dst, _type,_member,_getter,_args,_pvalue){
+
+# @return
+#   オブジェクトのメンバの値を取得します。
+#   戻り値にオブジェクトへのポインタを返します。使用後は release する必要があります。
+#
+#   オブジェクト内部へのポインタを返す可能性があるので、
+#   この戻り値を capture すると予期しない副作用・メモリーリークが生じる可能性があります。
+#   (例えば、オブジェクトが書き換わるとこの戻り値で指し示している値も変化します。
+#    また、この戻り値を capture するとオブジェクト全体がメモリー上に保持されます。)
+#   ev3_newObj() などを用いて新しいオブジェクトにコピーすることを推奨します。
+#
+function ev3proto_getProperty(obj,memberName, _type,_member,_getter,_args,_memptr,_ret){
   _type=ev3obj_univ(obj SUBSEP UKEY_TYP);
-  if(_type==NULL||_type==CLASS_NULL){
-    ev3obj_assignScal(dst,TYPE_NULL);
-    return FALSE;
-  }
+  if(_type==NULL||_type==CLASS_NULL)return FALSE;
 
-  _ev3_assert(dst!=NULL,"ev3proto_getProperty(obj,memberName,dst)","dst is NULL, which should not be NULL.");
-  if(ev3proto_accessProperty(EV3PROTO_ACCESS_MODE_VALUE,obj,memberName,dst)==NULL)
-    return FALSE;
+  if((_memptr=ev3proto_accessProperty(EV3PROTO_ACCESS_MODE_VALUE,obj,memberName))){
 
-  if(ev3obj_universe[dst,UKEY_TYP]==TYPE_PROP){
-    if(memberName ~ /^\+/){
-      _getter=dst SUBSEP UKEY_MEM SUBSEP "getter";
-      if(_getter SUBSEP UKEY_TYP in ev3obj_universe){
-        _args=ev3proto_new(ev3type_Array_prototype);
-        ev3obj_setMemberScal(_args,"+length",TYPE_NUM,1);
-        ev3obj_setMemberScal(_args,"+0",TYPE_STR,substr(memberName,2));
-        _pvalue=ev3proto_callFunction(obj,_getter,_args);
-
-        ev3obj_assignObj(dst,_pvalue);
-        ev3obj_release(_pvalue);
-        ev3obj_release(_args);
-        return TRUE;
+    # ■TYPE_PROP は実のところ未実装である
+    if(ev3obj_universe[_memptr,UKEY_TYP]==TYPE_PROP){
+      if(memberName ~ /^\+/){
+        _getter=_memptr SUBSEP UKEY_MEM SUBSEP "getter";
+        if(_getter SUBSEP UKEY_TYP in ev3obj_universe){
+          _args=ev3proto_new(ev3type_Array_prototype);
+          ev3obj_setMemberScal(_args,"+length",TYPE_NUM,1);
+          ev3obj_setMemberScal(_args,"+0",TYPE_STR,substr(memberName,2));
+          _ret=ev3proto_callFunction(obj,_getter,_args);
+          ev3obj_release(_args);
+          ev3obj_release(_memptr);
+          return _ret;
+        }
       }
     }
-    return FALSE;
+    
+    ev3obj_capture(_memptr);
+    return _memptr;
   }
 
-  return TRUE;
+  return FALSE;
 }
 # プロパティまたはメンバが実際に定義されている場所を取得します。
 function ev3proto_getVariableOwner(obj,memberName){
@@ -2507,7 +2508,7 @@ function ev3type_Function_dispatch(dst,obj,fname,args, _pthis,_pargs,_value,_exp
 #   つまり内部で参照のキャプチャは行いません。
 #   代わりに、戻り値は呼び出しに使用した obj が有効な間だけ有効です。
 #
-function ev3eval_rvalue(obj, _type,_rv){
+function ev3eval_rvalue(obj, _type,_rv,_pvalue){
   if(obj SUBSEP UKEY_TYP in ev3obj_universe){
     _type=ev3obj_universe[obj SUBSEP UKEY_TYP];
     if(_type==EV3_TYPE_LVALUE){
@@ -2515,7 +2516,11 @@ function ev3eval_rvalue(obj, _type,_rv){
       if(!(_rv SUBSEP UKEY_TYP in ev3obj_universe)){
         _root=obj SUBSEP UKEY_MEM SUBSEP "obj";
         _member=ev3obj_getMemberValue(obj,"memberName");
-        ev3proto_getProperty(_root,_member,_rv);
+        if((_pvalue=ev3proto_getProperty(_root,_member))){
+          ev3obj_assignObj(_rv,_pvalue);
+          ev3obj_release(_pvalue);
+        }else
+          ev3obj_assignScal(_rv,TYPE_NULL);
       }
       return ev3eval_rvalue(_rv);
     }else if(_type==TYPE_REF){
@@ -2581,8 +2586,7 @@ function ev3eval_tostring(obj, _type,_fun,_ret,_value,_args,_r){
 
   obj=ev3eval_rvalue(obj);
   if(ev3obj_universe[obj,UKEY_TYP]==TYPE_OBJ){
-    _fun=ev3obj_alloc();
-    if(ev3proto_getProperty(obj,"+toString",_fun)){
+    if((_fun=ev3proto_getProperty(obj,"+toString"))){
       _args=ev3proto_new(ev3type_Array_prototype);
       _ret=ev3proto_callFunction(obj,_fun,_args);
       _value=ev3obj_toString(_ret);
@@ -2591,7 +2595,6 @@ function ev3eval_tostring(obj, _type,_fun,_ret,_value,_args,_r){
       ev3obj_release(_fun);
       return _value;
     }
-    ev3obj_release(_fun);
   }
 
   return ev3obj_toString(obj);
@@ -2916,8 +2919,7 @@ function ev3eval_expr_functionCall(ctx,x,xtype, _arginfo,_args,_iN,_last,_oword,
       _ret=ev3proto_callFunction(_this,_vcallee,_args);
     }else if(_oword=="[]"){
       _vcallee=ev3eval_rvalue(_callee);
-      _accessor=ev3obj_alloc();
-      if(ev3proto_getProperty(_vcallee,"![]",_accessor)){
+      if((_accessor=ev3proto_getProperty(_vcallee,"![]"))){
         # operator[] が overload されている時
 
         # if(ev3obj_universe[_accessor,UKEY_TYP]==TYPE_PROP){
@@ -2925,6 +2927,7 @@ function ev3eval_expr_functionCall(ctx,x,xtype, _arginfo,_args,_iN,_last,_oword,
         # }
 
         _ret=ev3proto_callFunction(_vcallee,_accessor,_args);
+        ev3obj_release(_accessor);
       }else{
         # メンバアクセスに変換
         _iN=_arginfo["length"];
@@ -2938,7 +2941,6 @@ function ev3eval_expr_functionCall(ctx,x,xtype, _arginfo,_args,_iN,_last,_oword,
           _ret=ev3eval_null();
         }
       }
-      ev3obj_release(_accessor);
     }else{
       _ev3_assert(FALSE,"ev3eval_expr","unknown function-call bracket '" _oword "'!");
       _ret=ev3eval_null();

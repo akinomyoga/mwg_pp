@@ -1,4 +1,4 @@
-#!/usr/bin/env ./ev3v2.awk
+#!/usr/bin/env ev3v2
 // -*- mode:js -*-
 
 srand();for(i=10+rand()*10%20|0;i--;)rand();
