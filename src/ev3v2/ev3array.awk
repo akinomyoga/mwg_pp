@@ -65,18 +65,48 @@ function ev3type_Array_prototype_join(dst,obj,args, _sep,_len,_i,_vret){
   ev3obj_assignScal(dst,TYPE_STR,_vret);
   return TRUE;
 }
-# 実装途中
-# function ev3type_Array_prototype_slice(dst,obj,args, _len,_i,_argc){
-#   obj=ev3eval_rvalue(obj);
-#   _len=ev3eval_tonumber(ev3obj_getMemberPtr(obj,"+length"));
-#   _argc=ev3obj_getMemberValue(args,"+length");
-  
-#   _ret=ev3proto_new(ev3type_Array_prototype);
-#   ev3obj_setMemberScal(_ret,"+length",TYPE_NUM,_c);
-#   ev3obj_assignScal(dst,TYPE_REF,_ret);
-#   ev3obj_release(_ret);
-#   return TRUE;
-# }
+
+function ev3type_Array_canonicalizeIndex(i,len){
+  i=int(i);
+  if(i<0){
+    i+=len;
+    if(i<0)i=0;
+  }else if(i>len)
+    i=len;
+  return i;
+}
+
+function ev3type_Array_prototype_slice(dst,obj,args, _len,_argc,_b,_e,_c,_i,_p){
+  obj=ev3eval_rvalue(obj);
+  _len=ev3eval_tonumber(ev3obj_getMemberPtr(obj,"+length"));
+  _argc=ev3obj_getMemberValue(args,"+length");
+
+  _b=0;_e=_len;
+  if(0<_argc){
+    _b=ev3eval_tonumber(ev3obj_getMemberPtr(args,"+0"));
+    _b=ev3type_Array_canonicalizeIndex(_b,_len);
+
+    if(1<_argc){
+      _e=ev3eval_tonumber(ev3obj_getMemberPtr(args,"+1"));
+      _e=ev3type_Array_canonicalizeIndex(_e,_len);
+      if(_e<_b)_e=_b;
+    }
+  }
+  _c=_e-_b;
+
+  _ret=ev3proto_new(ev3type_Array_prototype);
+  if(_c>0){
+    ev3obj_setMemberScal(_ret,"+length",TYPE_NUM,_c);
+    for(_i=0;_i<_c;_i++){
+      if((_p=ev3obj_getMemberPtr(obj,"+" (_b+_i),EV3OBJ_MEMPTR_IFHAS)))
+        ev3obj_setMemberObj(_ret,"+" _i,_p);
+    }
+  }
+
+  ev3obj_assignScal(dst,TYPE_REF,_ret);
+  ev3obj_release(_ret);
+  return TRUE;
+}
 
 function ev3type_Array_dispatch(dst,obj,fname,args, _narg,_i){
   if(fname=="![]"){
@@ -90,6 +120,8 @@ function ev3type_Array_dispatch(dst,obj,fname,args, _narg,_i){
     return ev3type_Array_prototype_splice(dst,obj,args);
   }else if(fname=="join"){
     return ev3type_Array_prototype_join(dst,obj,args);
+  }else if(fname=="slice"){
+    return ev3type_Array_prototype_slice(dst,obj,args);
   }
 }
 
@@ -98,8 +130,8 @@ function ev3type_Array_initialize(world, _proto){
   _proto=ev3obj_placementNew(world,"Array.prototype");
   ev3obj_setMemberScal(_proto,"+splice",TYPE_NFUNC,"Array#splice");
   ev3obj_setMemberScal(_proto,"+join",TYPE_NFUNC,"Array#join");
+  ev3obj_setMemberScal(_proto,"+slice",TYPE_NFUNC,"Array#slice");
   ev3obj_setMemberScal(_proto,"+length",TYPE_NUM,0);
   #ev3obj_setMemberScal(_proto,"![]",TYPE_NFUNC,"Array#![]");#■
   ev3type_Array_prototype=_proto;
 }
-
