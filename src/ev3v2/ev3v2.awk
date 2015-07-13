@@ -718,13 +718,17 @@ function ev3obj_dump(obj){
 # 1 prototype chain を辿った探索
 # 2 (定義されていれば) getter/setter を用いた処理
 #
-
 function ev3proto_initialize(){
   ev3proto_world=ev3obj_new();
+  ev3eval_null_singleton=ev3obj_setMemberScal(ev3proto_world,"null",TYPE_NULL);
+  ev3eval_true_singleton=ev3obj_setMemberScal(ev3proto_world,"true",TYPE_BOOL,TRUE);
+  ev3eval_false_singleton=ev3obj_setMemberScal(ev3proto_world,"false",TYPE_BOOL,FALSE);
 
-  ev3obj_default_proto=ev3obj_placementNew(ev3proto_world,"default.prototype");
-  ev3obj_setMemberScal(ev3obj_default_proto,"+toString",TYPE_NFUNC,"default#toString");
+  ev3type_Object_initialize(ev3proto_world);
+  ev3type_Array_initialize(ev3proto_world);
+  ev3type_Function_initialize(ev3proto_world);
 }
+
 function ev3proto_finalize(){
   ev3obj_delete(ev3proto_world);
 }
@@ -753,16 +757,15 @@ function ev3proto_callFunction(obj,fun,args, _dst,_ftype,_fapply,_args2,_ret){
 
   # fun = native function -> native call
   if(_ftype==TYPE_NFUNC){
-    _dst=ev3obj_alloc();
-    ev3eval_nativeFunction_call(_dst,obj,ev3obj_universe[fun],args);
-    return _dst;
+    if((_dst=ev3eval_nativeFunction_call(obj,ev3obj_universe[fun],args)))
+      return _dst;
+    else
+      ev3eval_null();
   }
 
   # fun = lambda function
   if(_ftype==TYPE_FUNC){
-    _dst=ev3obj_alloc();
-    ev3type_Function_prototype_apply(_dst,fun,obj,args);
-    return _dst;
+    return ev3type_Function_internal_apply(fun,obj,args);
   }
 
   # fun = object -> call operator()
@@ -833,8 +836,8 @@ function _ev3proto_accessProperty_recurse(obj,proto,memberName,arg, _type,_cls,_
   _proto=ev3obj_type[_type,UKEY_PROTO];
   if(_proto!=NULL)return _ev3proto_accessProperty_recurse(obj,_proto,memberName,arg);
 
-  if(proto!=ev3obj_default_proto){
-    _proto=ev3obj_default_proto;
+  if(proto!=ev3type_Object_prototype){
+    _proto=ev3type_Object_prototype;
     if(_proto!=NULL)return _ev3proto_accessProperty_recurse(obj,_proto,memberName,arg);
   }
 
@@ -970,14 +973,14 @@ function _ev3proto_isPropertyNameValid_recurse(obj,proto,memberName,_proto){
   if(_proto!=NULL)
     return _ev3proto_isPropertyNameValid_recurse(obj,_proto,memberName);
 
-  if(proto!=ev3obj_default_proto){
-    _proto=ev3obj_default_proto;
+  if(proto!=ev3type_Object_prototype){
+    _proto=ev3type_Object_prototype;
     if(_proto!=NULL)
       return _ev3proto_isPropertyNameValid_recurse(obj,_proto,memberName);
   }
 
   # print "dbgdbg201411: memberName = " memberName;
-  # print "dbgdbg201411: ev3obj_default_proto = " ev3obj_dump(ev3obj_default_proto);
+  # print "dbgdbg201411: ev3type_Object_prototype = " ev3obj_dump(ev3type_Object_prototype);
   return FALSE;
 }
 function ev3proto_isPropertyNameValid(obj,memberName){
@@ -2078,19 +2081,11 @@ function ev3eval_initialize(_proto, _context){
   # context
   EV3_CTXKEY_ROOT=0;
 
-  ev3eval_null_singleton=ev3obj_setMemberScal(ev3proto_world,"null",TYPE_NULL);
-  ev3eval_true_singleton=ev3obj_setMemberScal(ev3proto_world,"true",TYPE_BOOL,TRUE);
-  ev3eval_false_singleton=ev3obj_setMemberScal(ev3proto_world,"false",TYPE_BOOL,FALSE);
-
   _proto=ev3obj_placementNew(ev3proto_world,"String.prototype");
   ev3obj_type[TYPE_STR,UKEY_PROTO]=_proto;
   ev3obj_setMemberScal(_proto,"+toLower",TYPE_NFUNC,"String#toLower");
   ev3obj_setMemberScal(_proto,"+toUpper",TYPE_NFUNC,"String#toUpper");
   ev3obj_setMemberScal(_proto,"![]",TYPE_NFUNC,"String#![]");
-
-  _proto=ev3obj_placementNew(ev3proto_world,"Function.prototype");
-  ev3obj_type[TYPE_FUNC,UKEY_PROTO]=_proto;
-  ev3obj_setMemberScal(_proto,"!()",TYPE_NFUNC,"Function#!()");
 
   _context=ev3obj_placementNew(ev3proto_world,"global");
   ev3obj_setMemberScal(_context,"+puts",TYPE_NFUNC,"global#puts");
@@ -2129,7 +2124,6 @@ function ev3eval_initialize(_proto, _context){
   ev3obj_setMemberScal(_context,"+rand" ,TYPE_NFUNC,"math::rand" );
   ev3obj_setMemberScal(_context,"+srand",TYPE_NFUNC,"math::srand");
 
-  ev3type_Array_initialize(ev3proto_world);
 }
 function ev3eval_finalize(){
 }
@@ -2164,16 +2158,13 @@ function ev3eval_bool(value, _ret){
   return _ret;
 }
 
-function ev3eval_nativeFunction_vsprintf(fmt,va){
-  return sprintf(fmt,va[0],va[1],va[2],va[3],va[4],va[5],va[6],va[7],va[8],va[9],va[10],va[11],va[12],va[13],va[14],va[15],va[16],va[17],va[18],va[19]);
-}
-function ev3eval_nativeFunction_floor(x, _ix){
+function ev3eval_Math_internal_floor(x, _ix){
   if(x>=0)return x;
   _ix=int(1-x);
   return int(x+_ix)-_ix;
 }
 
-function ev3eval_nativeFunctionMath_call(dst,obj,fname,args, _fname,_i,_c,_f,_x,_y){
+function ev3type_Math_dispatch(obj,fname,args, _fname,_i,_c,_f,_x,_y){
   _fname=fname
   sub(/^math::/,"",_fname);
   if(_fname ~ /^(a?(sin|cos|tan)h?|log|exp|(sq|cb)rt|int|floor|ceil|round)$/){
@@ -2198,12 +2189,11 @@ function ev3eval_nativeFunctionMath_call(dst,obj,fname,args, _fname,_i,_c,_f,_x,
     else if(_fname=="sqrt"){_x=sqrt(_x);}
     else if(_fname=="cbrt"){_x=_x^(1.0/3.0);}
     else if(_fname=="int"){_x=int(_x);}
-    else if(_fname=="floor"){_x=ev3eval_nativeFunction_floor(_x);}
-    else if(_fname=="ceil"){_x=-ev3eval_nativeFunction_floor(-_x);}
+    else if(_fname=="floor"){_x=ev3eval_Math_internal_floor(_x);}
+    else if(_fname=="ceil"){_x=-ev3eval_Math_internal_floor(-_x);}
     else if(_fname=="round"){_x=int(_x+(_x<0?-0.5:0.5));}
 
-    ev3obj_assignScal(dst,TYPE_NUM,_x);
-    return TRUE;
+    return ev3obj_newScal(TYPE_NUM,_x);
   }else if(_fname ~ /^(atan2|pow|hypot)$/){
     # binary function
     _x=ev3eval_tonumber(args SUBSEP UKEY_MEM SUBSEP "+0");
@@ -2213,8 +2203,7 @@ function ev3eval_nativeFunctionMath_call(dst,obj,fname,args, _fname,_i,_c,_f,_x,
     else if(_fname=="pow"){_x=_x^_y;}
     else if(_fname=="hypot"){_x=sqrt(_x*_x+_y*_y);}
 
-    ev3obj_assignScal(dst,TYPE_NUM,_x);
-    return TRUE;
+    return ev3obj_newScal(TYPE_NUM,_x);
   }else if(_fname ~ /^(min|max)$/){
     # 複数の引数
     _f=_fname=="min"
@@ -2225,39 +2214,41 @@ function ev3eval_nativeFunctionMath_call(dst,obj,fname,args, _fname,_i,_c,_f,_x,
       if(_f!=(_x<_y))_x=_y;
     }
 
-    ev3obj_assignScal(dst,TYPE_NUM,_x);
-    return TRUE;
+    return ev3obj_newScal(TYPE_NUM,_x);
   }else if(_fname ~ /^rand$/){
-    ev3obj_assignScal(dst,TYPE_NUM,rand());
-    return TRUE;
+    return ev3obj_newScal(TYPE_NUM,rand());
   }else if(_fname ~ /^srand$/){
     _c=ev3obj_getMemberValue(args,"+length");
     if(_c==0)
-      ev3obj_assignScal(dst,TYPE_NUM,srand());
+      return ev3obj_newScal(TYPE_NUM,srand());
     else{
       _x=ev3eval_tonumber(args SUBSEP UKEY_MEM SUBSEP "+0");
-      ev3obj_assignScal(dst,TYPE_NUM,srand(_x));
+      return ev3obj_newScal(TYPE_NUM,srand(_x));
     }
-    return TRUE;
   }
 }
 
-function ev3eval_nativeFunctionObject_call(dst,obj,fname,args, _value){
+function ev3type_Object_protptype_toString(obj,args){
+  return ev3obj_newScal(TYPE_STR,ev3obj_toString(obj));
+}
+function ev3type_Object_dispatch(obj,fname,args, _value){
   if(fname=="toString"){
-    _value=ev3obj_toString(obj);
-    ev3obj_assignScal(dst,TYPE_STR,_value);
-    return TRUE;
+    return ev3type_Object_protptype_toString(obj,args);
   }
 }
-function ev3eval_nativeFunctionString_call(dst,obj,fname,args, _value,_a1){
+function ev3type_Object_initialize(world){
+  ev3type_Object_prototype=ev3obj_placementNew(world,"Object.prototype");
+  ev3obj_setMemberScal(ev3type_Object_prototype,"+toString",TYPE_NFUNC,"ev3type_Object_prototype_toString");
+}
+
+function ev3type_String_dispatch(obj,fname,args, _value,_a1){
   if(fname ~ /^to(Lower|Upper)$/){
     _value=ev3eval_tostring(obj);
 
     if(fname=="toLower")_value=tolower(_value);
     else if(fname=="toUpper")_value=toupper(_value);
 
-    ev3obj_assignScal(dst,TYPE_STR,_value);
-    return TRUE;
+    return ev3obj_newScal(TYPE_STR,_value);
   }
 
   if(fname ~ /^indexOf$/){
@@ -2266,8 +2257,7 @@ function ev3eval_nativeFunctionString_call(dst,obj,fname,args, _value,_a1){
 
     _value=index(_value,_a1)-1;
 
-    ev3obj_assignScal(dst,TYPE_NUM,_value);
-    return TRUE;
+    return ev3obj_newScal(TYPE_NUM,_value);
   }
 
   if(fname=="![]"){
@@ -2277,27 +2267,29 @@ function ev3eval_nativeFunctionString_call(dst,obj,fname,args, _value,_a1){
 
     _value=substr(_value,1+_a1,1);
 
-    ev3obj_assignScal(dst,TYPE_STR,_value);
-    return TRUE;
+    return ev3obj_newScal(TYPE_STR,_value);
   }
 }
 
-function ev3eval_nativeFunction_call(dst,obj,fname,args, _fname2,_i,_a,_c,_r,_f,_x,_y,_m,_s,_v){
+function ev3eval_nativeFunction_vsprintf(fmt,va){
+  return sprintf(fmt,va[0],va[1],va[2],va[3],va[4],va[5],va[6],va[7],va[8],va[9],va[10],va[11],va[12],va[13],va[14],va[15],va[16],va[17],va[18],va[19]);
+}
+
+function ev3eval_nativeFunction_call(obj,fname,args, _fname2,_i,_a,_c,_r,_f,_x,_y,_m,_s,_v,_ret){
   if(fname ~ /^global#/){
     _fname2=fname
     sub(/^global#/,"",_fname2);
     if(_fname2=="puts"){
       #print "puts() args = " ev3obj_dump(args) ", args[0] = " ev3obj_dump(args SUBSEP UKEY_MEM SUBSEP "+0");
       print ev3eval_tostring(args SUBSEP UKEY_MEM SUBSEP "+0");
-      return;
+      return ev3eval_null();
     }else if(_fname2=="printf"){
       _f=ev3eval_tostring(args SUBSEP UKEY_MEM SUBSEP "+0");
       _c=ev3obj_getMemberValue(args,"+length");
       for(_i=1;_i<_c;_i++)_a[_i-1]=ev3obj_getMemberValue(args,"+" _i);
       _r=ev3eval_nativeFunction_vsprintf(_f,_a);
       printf("%s",_r);
-      ev3obj_assignScal(dst,TYPE_NUM,length(_r));
-      return;
+      return ev3obj_newScal(TYPE_NUM,length(_r));
     }else if(_fname2=="sprintf"){
       _f=ev3eval_tostring(args SUBSEP UKEY_MEM SUBSEP "+1");
       _c=ev3obj_getMemberValue(args,"+length");
@@ -2307,46 +2299,47 @@ function ev3eval_nativeFunction_call(dst,obj,fname,args, _fname2,_i,_a,_c,_r,_f,
       _f=args SUBSEP UKEY_MEM SUBSEP "+0";
       if(!(_f SUBSEP UKEY_TYP in ev3obj_universe)){
         _ev3_error("ev3eval (global#sprintf)","first argument undefined");
-        return;
+        return ev3eval_null();
       }
       if(ev3obj_universe[_f,UKEY_TYP]!=TYPE_REF){
         # ■第一引数=ポインタ?
         _ev3_error("ev3eval (global#sprintf)","first argument should be an object reference");
-        return;
+        return ev3eval_null();
       }
 
       ev3obj_assignScal(ev3obj_universe[_f],TYPE_STR,_r);
-      ev3obj_assignScal(dst,TYPE_NUM,length(_r));
-      return;
+      return ev3obj_newScal(TYPE_NUM,length(_r));
     }else if(_fname2=="dump"){
       print ev3obj_dump(args SUBSEP UKEY_MEM SUBSEP "+0");
-      return;
+      return ev3eval_null();
     }else if(_fname2=="eval"){
       _s=ev3eval_tostring(args SUBSEP UKEY_MEM SUBSEP "+0");
       if((_s=ev3parse(_s))!=NULL){
         _v=ev3eval_expr(g_ctx,_s);
-        _v=ev3eval_rvalue(_v);
-        ev3obj_assignObj(dst,_v);
+        _ret=ev3obj_newObj(ev3eval_rvalue(_v));
         ev3obj_release(_v);
         ev3obj_release(_s);
+        return _ret;
       }else{
-        ev3obj_assignScal(dst,TYPE_NULL);
+        return ev3eval_null();
       }
-      return;
     }
-  }else if(fname ~ /^math::/){
-    if(ev3eval_nativeFunctionMath_call(dst,obj,fname,args))return TRUE;
-  }else if(match(fname,/^String#(.+)$/,_m)>=1){
-    if(ev3eval_nativeFunctionString_call(dst,obj,_m[1],args))return TRUE;
-  }else if(match(fname,/^Function#(.+)$/,_m)>=1){
-    if(ev3type_Function_dispatch(dst,obj,_m[1],args))return TRUE;
-  }else if(match(fname,/^Array#(.+)$/,_m)>=1){
-    if(ev3type_Array_dispatch(dst,obj,_m[1],args))return TRUE;
-  }else if(match(fname,/^default#(.+)$/,_m)>=1){
-    if(ev3eval_nativeFunctionObject_call(dst,obj,_m[1],args))return TRUE;
   }
 
-  _ev3_assert(FALSE,"ev3eval (ev3eval_nativeFunction_call)","specified function '" fname "' does not exist.");
+  if(fname ~ /^math::/){
+    if((_ret=ev3type_Math_dispatch(obj,fname,args)))return _ret;
+  }else if(match(fname,/^String#(.+)$/,_m)>=1){
+    if((_ret=ev3type_String_dispatch(obj,_m[1],args)))return _ret;
+  }else if(match(fname,/^ev3type_Function_prototype_(.+)$/,_m)>=1){
+    if((_ret=ev3type_Function_dispatch(obj,_m[1],args)))return _ret;
+  }else if(match(fname,/^ev3type_Array_prototype_(.+)$/,_m)>=1){
+    if((_ret=ev3type_Array_dispatch(obj,_m[1],args)))return _ret;
+  }else if(match(fname,/^ev3type_Object_prototype_(.+)$/,_m)>=1){
+    if((_ret=ev3type_Object_dispatch(obj,_m[1],args)))return _ret;
+  }
+
+  _ev3_error("ev3eval (ev3eval_nativeFunction_call)","BUG (invalid native function): specified function '" fname "' does not exist.");
+  return ev3eval_null();
 }
 
 #------------------------------------------------------------------------------
@@ -2381,7 +2374,7 @@ function ev3type_Function_constructor(dst,xparam,xbody, _plist){
   return TRUE;
 }
 
-function ev3type_Function_prototype_apply(pret,pfun,pthis,pargs, _expr,_closure,_params,_nparams,_scope,_i,_narg,_arg,_ctxSave,_returnValue){
+function ev3type_Function_internal_apply(pfun,pthis,pargs, _expr,_closure,_params,_nparams,_scope,_i,_narg,_arg,_ctxSave,_returnValue){
   _expr   =ev3obj_getMemberPtr(pfun,"[[Expr]]");
   _closure=ev3obj_getMemberPtr(pfun,"[[Scope]]");
   _nparams=split(ev3obj_getMemberValue(pfun,"[[params]]"),_params,/,/);
@@ -2389,7 +2382,7 @@ function ev3type_Function_prototype_apply(pret,pfun,pthis,pargs, _expr,_closure,
   # dereference
   if(!(_expr SUBSEP UKEY_TYP in ev3obj_universe)){
     _ev3_error("ev3type (Function#apply)","invalid function object. The expression [[Expr]] is undefined.");
-    return;
+    return ev3eval_null();
   }
   if(ev3obj_universe[_expr,UKEY_TYP]==TYPE_REF)
     _expr=ev3obj_universe[_expr];
@@ -2413,18 +2406,26 @@ function ev3type_Function_prototype_apply(pret,pfun,pthis,pargs, _expr,_closure,
   _returnValue=ev3eval_expr(_ctxSave,_expr);
   ev3eval_ctx_restore(_ctxSave);
 
-  ev3obj_assignObj(pret,_returnValue);
-  ev3obj_release(_returnValue);
   ev3obj_release(_scope);
-  return TRUE;
+  return _returnValue;
 }
 
-function ev3type_Function_dispatch(dst,obj,fname,args, _pthis,_pargs,_value,_expr,_scope,_ctxSave,_returnValue){
-  if(fname=="!()"){
-    _pthis=ev3obj_getMemberValue(args,"+0");
-    _pargs=ev3obj_getMemberValue(args,"+1");
-    return ev3type_Function_prototype_apply(dst,obj,_pthis,_pargs);
+function ev3type_Function_prototype_apply(obj,args, _pthis,_pargs){
+  _pthis=ev3obj_getMemberValue(args,"+0");
+  _pargs=ev3obj_getMemberValue(args,"+1");
+  return ev3type_Function_internal_apply(obj,_pthis,_pargs);
+}
+function ev3type_Function_dispatch(obj,fname,args){
+  if(fname=="apply"){
+    return ev3type_Function_prototype_apply(obj,args);
   }
+}
+
+function ev3type_Function_initialize(world){
+  _proto=ev3obj_placementNew(world,"Function.prototype");
+  ev3obj_type[TYPE_FUNC,UKEY_PROTO]=_proto;
+  ev3obj_setMemberScal(_proto,"!()",TYPE_NFUNC,"ev3type_Function_prototype_apply");
+  ev3obj_setMemberScal(_proto,"+apply",TYPE_NFUNC,"ev3type_Function_prototype_apply");
 }
 
 #------------------------------------------------------------------------------

@@ -1,3 +1,3 @@
-#!/usr/bin/env ./ev3v2.awk
+#!/usr/bin/env ev3v2
 // -*- mode:c++ -*-
 arr=[1];for(n=0;n<32;n++){s="";for(r=0;r<=n;r++)s+=arr[r]%2==1?"*":" ";puts(s);for(r=n;r>=0;r--){arr[r+1]+=arr[r];}}

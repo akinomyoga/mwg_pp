@@ -2,7 +2,7 @@
 # ev3v2 Array
 #
 
-function ev3type_Array_prototype_splice(dst,obj,args, _i,_c,_argc,_len,_ret,_shift,_s,_d,_ksrc){
+function ev3type_Array_prototype_splice(obj,args, _i,_c,_argc,_len,_ret,_shift,_s,_d,_ksrc){
   obj=ev3eval_rvalue(obj);
   _len=ev3eval_tonumber(ev3obj_getMemberPtr(obj,"+length"));
   _argc=ev3obj_getMemberValue(args,"+length");
@@ -18,8 +18,6 @@ function ev3type_Array_prototype_splice(dst,obj,args, _i,_c,_argc,_len,_ret,_shi
       ev3obj_setMemberObj(_ret,"+" _d,_ksrc);
   }
   ev3obj_setMemberScal(_ret,"+length",TYPE_NUM,_c);
-  ev3obj_assignScal(dst,TYPE_REF,_ret);
-  ev3obj_release(_ret);
 
   # shift the rest elements
   _shift=(_argc>2?_argc-2:0)-_c;
@@ -49,9 +47,9 @@ function ev3type_Array_prototype_splice(dst,obj,args, _i,_c,_argc,_len,_ret,_shi
 
   # update length
   ev3obj_setMemberScal(obj,"+length",TYPE_NUM,_len+_shift);
-  return TRUE;
+  return _ret;
 }
-function ev3type_Array_prototype_join(dst,obj,args, _sep,_len,_i,_vret){
+function ev3type_Array_prototype_join(obj,args, _sep,_len,_i,_vret){
   obj=ev3eval_rvalue(obj);
   _sep=ev3obj_getMemberPtr(args,"+0",EV3OBJ_MEMPTR_IFHAS);
   _sep=_sep?ev3eval_tostring(_sep):",";
@@ -62,8 +60,7 @@ function ev3type_Array_prototype_join(dst,obj,args, _sep,_len,_i,_vret){
     for(_i=1;_i<_len;_i++)
       _vret=_vret _sep ev3eval_tostring(ev3obj_getMemberPtr(obj,"+" _i,EV3OBJ_MEMPTR_IFHAS));
   }
-  ev3obj_assignScal(dst,TYPE_STR,_vret);
-  return TRUE;
+  return ev3obj_newScal(TYPE_STR,_vret);
 }
 
 function ev3type_Array_canonicalizeIndex(i,len){
@@ -76,7 +73,7 @@ function ev3type_Array_canonicalizeIndex(i,len){
   return i;
 }
 
-function ev3type_Array_prototype_slice(dst,obj,args, _len,_argc,_b,_e,_c,_i,_p){
+function ev3type_Array_prototype_slice(obj,args, _len,_argc,_b,_e,_c,_i,_p){
   obj=ev3eval_rvalue(obj);
   _len=ev3eval_tonumber(ev3obj_getMemberPtr(obj,"+length"));
   _argc=ev3obj_getMemberValue(args,"+length");
@@ -102,36 +99,33 @@ function ev3type_Array_prototype_slice(dst,obj,args, _len,_argc,_b,_e,_c,_i,_p){
         ev3obj_setMemberObj(_ret,"+" _i,_p);
     }
   }
-
-  ev3obj_assignScal(dst,TYPE_REF,_ret);
-  ev3obj_release(_ret);
-  return TRUE;
+  return _ret;
 }
 
-function ev3type_Array_dispatch(dst,obj,fname,args, _narg,_i){
-  if(fname=="![]"){
+function ev3type_Array_dispatch(obj,fname,args, _narg,_i,_ret){
+  if(fname=="operator_index"){
     _narg=ev3obj_getMemberValue(args,"+length");
     _i=_narg>=1?int(ev3eval_tonumber(ev3obj_getMemberPtr(args,"+" (_narg-1)))):0;
-    ev3obj_assignScal(dst,EV3_TYPE_LVALUE);
-    ev3obj_setMemberScal(dst,"obj",TYPE_REF,obj);
-    ev3obj_setMemberScal(dst,"memberName",TYPE_STR,"+" _i);
-    return TRUE;
+    _ret=ev3obj_newScal(EV3_TYPE_LVALUE);
+    ev3obj_setMemberScal(_ret,"obj",TYPE_REF,obj);
+    ev3obj_setMemberScal(_ret,"memberName",TYPE_STR,"+" _i);
+    return _ret;
   }else if(fname=="splice"){
-    return ev3type_Array_prototype_splice(dst,obj,args);
+    return ev3type_Array_prototype_splice(obj,args);
   }else if(fname=="join"){
-    return ev3type_Array_prototype_join(dst,obj,args);
+    return ev3type_Array_prototype_join(obj,args);
   }else if(fname=="slice"){
-    return ev3type_Array_prototype_slice(dst,obj,args);
+    return ev3type_Array_prototype_slice(obj,args);
   }
 }
 
 ## @param[in] world Array.prototype を定義する先のオブジェクトを指定します。
 function ev3type_Array_initialize(world, _proto){
   _proto=ev3obj_placementNew(world,"Array.prototype");
-  ev3obj_setMemberScal(_proto,"+splice",TYPE_NFUNC,"Array#splice");
-  ev3obj_setMemberScal(_proto,"+join",TYPE_NFUNC,"Array#join");
-  ev3obj_setMemberScal(_proto,"+slice",TYPE_NFUNC,"Array#slice");
+  ev3obj_setMemberScal(_proto,"+splice",TYPE_NFUNC,"ev3type_Array_prototype_splice");
+  ev3obj_setMemberScal(_proto,"+join",TYPE_NFUNC,"ev3type_Array_prototype_join");
+  ev3obj_setMemberScal(_proto,"+slice",TYPE_NFUNC,"ev3type_Array_prototype_slice");
   ev3obj_setMemberScal(_proto,"+length",TYPE_NUM,0);
-  #ev3obj_setMemberScal(_proto,"![]",TYPE_NFUNC,"Array#![]");#■
+  #ev3obj_setMemberScal(_proto,"![]",TYPE_NFUNC,"ev3type_Array_prototype_operator_index");#■
   ev3type_Array_prototype=_proto;
 }
