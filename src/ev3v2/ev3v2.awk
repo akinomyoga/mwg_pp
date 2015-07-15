@@ -2083,17 +2083,17 @@ function ev3eval_initialize(_proto, _context){
 
   _proto=ev3obj_placementNew(ev3proto_world,"String.prototype");
   ev3obj_type[TYPE_STR,UKEY_PROTO]=_proto;
-  ev3obj_setMemberScal(_proto,"+toLower",TYPE_NFUNC,"String#toLower");
-  ev3obj_setMemberScal(_proto,"+toUpper",TYPE_NFUNC,"String#toUpper");
-  ev3obj_setMemberScal(_proto,"![]",TYPE_NFUNC,"String#![]");
+  ev3obj_setMemberScal(_proto,"+toLower",TYPE_NFUNC,"ev3type_String_prototype_toLower");
+  ev3obj_setMemberScal(_proto,"+toUpper",TYPE_NFUNC,"ev3type_String_prototype_toUpper");
+  ev3obj_setMemberScal(_proto,"![]",TYPE_NFUNC,"ev3type_String_prototype_![]");
 
   _context=ev3obj_placementNew(ev3proto_world,"global");
-  ev3obj_setMemberScal(_context,"+puts",TYPE_NFUNC,"global#puts");
-  ev3obj_setMemberScal(_context,"+printf",TYPE_NFUNC,"global#printf");
-  ev3obj_setMemberScal(_context,"+sprintf",TYPE_NFUNC,"global#sprintf");
+  ev3obj_setMemberScal(_context,"+puts",TYPE_NFUNC,"ev3type_Global_prototype_puts");
+  ev3obj_setMemberScal(_context,"+printf",TYPE_NFUNC,"ev3type_Global_prototype_printf");
+  ev3obj_setMemberScal(_context,"+sprintf",TYPE_NFUNC,"ev3type_Global_prototype_sprintf");
 
-  ev3obj_setMemberScal(_context,"+dump",TYPE_NFUNC,"global#dump");
-  ev3obj_setMemberScal(_context,"+eval",TYPE_NFUNC,"global#eval");
+  ev3obj_setMemberScal(_context,"+dump",TYPE_NFUNC,"ev3type_Global_prototype_dump");
+  ev3obj_setMemberScal(_context,"+eval",TYPE_NFUNC,"ev3type_Global_prototype_eval");
 
   ev3obj_setMemberScal(_context,"+sin"  ,TYPE_NFUNC,"math::sin"  );
   ev3obj_setMemberScal(_context,"+cos"  ,TYPE_NFUNC,"math::cos"  );
@@ -2271,64 +2271,66 @@ function ev3type_String_dispatch(obj,fname,args, _value,_a1){
   }
 }
 
-function ev3eval_nativeFunction_vsprintf(fmt,va){
+function ev3eval_Global_prototype_vsprintf(fmt,va){
   return sprintf(fmt,va[0],va[1],va[2],va[3],va[4],va[5],va[6],va[7],va[8],va[9],va[10],va[11],va[12],va[13],va[14],va[15],va[16],va[17],va[18],va[19]);
 }
 
-function ev3eval_nativeFunction_call(obj,fname,args, _fname2,_i,_a,_c,_r,_f,_x,_y,_m,_s,_v,_ret){
-  if(fname ~ /^global#/){
-    _fname2=fname
-    sub(/^global#/,"",_fname2);
-    if(_fname2=="puts"){
-      #print "puts() args = " ev3obj_dump(args) ", args[0] = " ev3obj_dump(args SUBSEP UKEY_MEM SUBSEP "+0");
-      print ev3eval_tostring(args SUBSEP UKEY_MEM SUBSEP "+0");
-      return ev3eval_null();
-    }else if(_fname2=="printf"){
-      _f=ev3eval_tostring(args SUBSEP UKEY_MEM SUBSEP "+0");
-      _c=ev3obj_getMemberValue(args,"+length");
-      for(_i=1;_i<_c;_i++)_a[_i-1]=ev3obj_getMemberValue(args,"+" _i);
-      _r=ev3eval_nativeFunction_vsprintf(_f,_a);
-      printf("%s",_r);
-      return ev3obj_newScal(TYPE_NUM,length(_r));
-    }else if(_fname2=="sprintf"){
-      _f=ev3eval_tostring(args SUBSEP UKEY_MEM SUBSEP "+1");
-      _c=ev3obj_getMemberValue(args,"+length");
-      for(_i=2;_i<_c;_i++)_a[_i-2]=ev3obj_getMemberValue(args,"+" _i);
-      _r=ev3eval_nativeFunction_vsprintf(_f,_a);
+function ev3type_Global_dispatch(obj,fname,args){
+  if(fname=="puts"){
+    #print "puts() args = " ev3obj_dump(args) ", args[0] = " ev3obj_dump(args SUBSEP UKEY_MEM SUBSEP "+0");
+    print ev3eval_tostring(args SUBSEP UKEY_MEM SUBSEP "+0");
+    return ev3eval_null();
+  }else if(fname=="printf"){
+    _f=ev3eval_tostring(args SUBSEP UKEY_MEM SUBSEP "+0");
+    _c=ev3obj_getMemberValue(args,"+length");
+    for(_i=1;_i<_c;_i++)_a[_i-1]=ev3obj_getMemberValue(args,"+" _i);
+    _r=ev3eval_Global_prototype_vsprintf(_f,_a);
+    printf("%s",_r);
+    return ev3obj_newScal(TYPE_NUM,length(_r));
+  }else if(fname=="sprintf"){
+    _f=ev3eval_tostring(args SUBSEP UKEY_MEM SUBSEP "+1");
+    _c=ev3obj_getMemberValue(args,"+length");
+    for(_i=2;_i<_c;_i++)_a[_i-2]=ev3obj_getMemberValue(args,"+" _i);
+    _r=ev3eval_Global_prototype_vsprintf(_f,_a);
 
-      _f=args SUBSEP UKEY_MEM SUBSEP "+0";
-      if(!(_f SUBSEP UKEY_TYP in ev3obj_universe)){
-        _ev3_error("ev3eval (global#sprintf)","first argument undefined");
-        return ev3eval_null();
-      }
-      if(ev3obj_universe[_f,UKEY_TYP]!=TYPE_REF){
-        # ■第一引数=ポインタ?
-        _ev3_error("ev3eval (global#sprintf)","first argument should be an object reference");
-        return ev3eval_null();
-      }
-
-      ev3obj_assignScal(ev3obj_universe[_f],TYPE_STR,_r);
-      return ev3obj_newScal(TYPE_NUM,length(_r));
-    }else if(_fname2=="dump"){
-      print ev3obj_dump(args SUBSEP UKEY_MEM SUBSEP "+0");
+    _f=args SUBSEP UKEY_MEM SUBSEP "+0";
+    if(!(_f SUBSEP UKEY_TYP in ev3obj_universe)){
+      _ev3_error("ev3eval (ev3type_Global_prototype_sprintf)","first argument undefined");
       return ev3eval_null();
-    }else if(_fname2=="eval"){
-      _s=ev3eval_tostring(args SUBSEP UKEY_MEM SUBSEP "+0");
-      if((_s=ev3parse(_s))!=NULL){
-        _v=ev3eval_expr(g_ctx,_s);
-        _ret=ev3obj_newObj(ev3eval_rvalue(_v));
-        ev3obj_release(_v);
-        ev3obj_release(_s);
-        return _ret;
-      }else{
-        return ev3eval_null();
-      }
+    }
+    if(ev3obj_universe[_f,UKEY_TYP]!=TYPE_REF){
+      # ■第一引数=ポインタ?
+      _ev3_error("ev3eval (ev3type_Global_prototype_sprintf)","first argument should be an object reference");
+      return ev3eval_null();
+    }
+
+    ev3obj_assignScal(ev3obj_universe[_f],TYPE_STR,_r);
+    return ev3obj_newScal(TYPE_NUM,length(_r));
+  }else if(fname=="dump"){
+    print ev3obj_dump(args SUBSEP UKEY_MEM SUBSEP "+0");
+    return ev3eval_null();
+  }else if(fname=="eval"){
+    _s=ev3eval_tostring(args SUBSEP UKEY_MEM SUBSEP "+0");
+    if((_s=ev3parse(_s))!=NULL){
+      _v=ev3eval_expr(g_ctx,_s);
+      _ret=ev3obj_newObj(ev3eval_rvalue(_v));
+      ev3obj_release(_v);
+      ev3obj_release(_s);
+      return _ret;
+    }else{
+      return ev3eval_null();
     }
   }
+}
 
-  if(fname ~ /^math::/){
+function ev3eval_nativeFunction_call(obj,fname,args, _fname2,_i,_a,_c,_r,_f,_x,_y,_m,_s,_v,_ret){
+  if(fname ~ /^ev3type_Global_prototype_/){
+    _fname2=fname
+    sub(/^ev3type_Global_prototype_/,"",_fname2);
+    if((_ret=ev3type_Global_dispatch(obj,_fname2,args)))return _ret;
+  }else if(fname ~ /^math::/){
     if((_ret=ev3type_Math_dispatch(obj,fname,args)))return _ret;
-  }else if(match(fname,/^String#(.+)$/,_m)>=1){
+  }else if(match(fname,/^ev3type_String_prototype_(.+)$/,_m)>=1){
     if((_ret=ev3type_String_dispatch(obj,_m[1],args)))return _ret;
   }else if(match(fname,/^ev3type_Function_prototype_(.+)$/,_m)>=1){
     if((_ret=ev3type_Function_dispatch(obj,_m[1],args)))return _ret;

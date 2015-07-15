@@ -3,11 +3,10 @@
 
 assert=(condition,message)=> eval(condition)||printf("assertion failed\e[m: %sexpr = (%s).\n",message!=NULL?message+"\n  ":"",condition);
 
-assert('[0,1,2].join()=="0,1,2"',[0,1,2].join());
-assert('a=[0,1,2,3];a.splice(1,2).join()=="1,2"&&a.join()=="0,3"');
-
-// Array#slice
-assert('[0,1,2,3,4].slice(1,-2).join()=="1,2"');
+assert('sin(0.0)==0.0');
+assert('cos(0.0)==1.0');
+assert('sinh(0.0)==0.0');
+assert('cosh(0.0)==1.0');
 
 puts("done");
 assert=null;
