@@ -693,7 +693,7 @@ function process_line(line,_line,_text,_ind,_len,_directive, _cap){
   if(m_comment_cpp)
     sub(/^\/\//,"#",_line);
   if(m_comment_pragma)
-    sub(/^\#pragma/,"#",_line);
+    sub(/^[[:space:]]*\#[[:space:]]*pragma/,"#",_line);
   if(m_comment_c&&match(_line,/^\/\*(.+)\*\/$/,_cap)>0)
     _line="#" _cap[1];
 
@@ -806,7 +806,7 @@ function dependency_generate(output,target, _i,_iMax){
   }else{
     print target ": " m_rfile " \\" > output
     _iMax=m_dependency_count-1;
-    for(_i=1;_i<_iMax;_i++)
+    for(_i=0;_i<_iMax;_i++)
       print "  " m_dependency[_i] " \\" >> output;
     print "  " m_dependency[_iMax] >> output;
   }
