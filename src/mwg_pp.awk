@@ -1620,7 +1620,7 @@ function process_line(line,_line,_text,_ind,_len,_directive, _cap){
   if(m_comment_cpp)
     sub(/^\/\//,"#",_line);
   if(m_comment_pragma)
-    sub(/^\#pragma/,"#",_line);
+    sub(/^[[:space:]]*\#[[:space:]]*pragma/,"#",_line);
   if(m_comment_c&&match(_line,/^\/\*(.+)\*\/$/,_cap)>0)
     _line="#" _cap[1];
 
