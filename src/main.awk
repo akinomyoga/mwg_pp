@@ -757,7 +757,9 @@ function process_line(line,_line,_text,_ind,_len,_directive, _cap){
 }
 
 BEGIN{
-  FS="MWG_PP_COMMENT";
+  #%# 自身を自身で処理する時、完全な FS が含まれていると
+  #%# そこで分断されてしまうので、敢えてリテラルを分割する。
+  FS="MWG_PP" "_COMMENT";
   ev1scan_init();
   d_level=0;
   d_data[0]="";
