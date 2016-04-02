@@ -779,14 +779,15 @@ BEGIN{
 }
 
 {
-  if(NR==1){
+  if(FNR==1){
     if(ENVIRON["PPLINENO_FILE"]!="")
       m_rfile=ENVIRON["PPLINENO_FILE"];
     else
       m_rfile=FILENAME;
+    dependency_add(m_rfile);
   }
   m_lineno_cfile=m_rfile;
-  m_lineno_cline=NR;
+  m_lineno_cline=FNR;
   process_line($1);
 }
 
@@ -796,21 +797,23 @@ function dependency_add(file){
     m_dependency[m_dependency_count++]=file;
   }
 }
-function dependency_generate(output,target, _i,_iMax){
+function dependency_generate(output,target, _i,_iMax,_line){
   if(!target){
     target=m_rfile;
     sub(/\.pp$/,"",target);
     target=target ".out";
   }
 
-  if(m_dependency_count==0){
-    print target ": " m_rfile > output
-  }else{
-    print target ": " m_rfile " \\" > output
+  if(m_dependency_count==0)
+    print target ":" > output;
+  else{
     _iMax=m_dependency_count-1;
-    for(_i=0;_i<_iMax;_i++)
-      print "  " m_dependency[_i] " \\" >> output;
-    print "  " m_dependency[_iMax] >> output;
+    for(_i=0;_i<m_dependency_count;_i++){
+      _line=_i==0?target ": ":"  ";
+      _line=_line m_dependency[_i];
+      if(_i<_iMax)_line=_line " \\";
+      print _line > output;
+    }
   }
 }
 
