@@ -173,7 +173,7 @@ function ev3scan_init(){
   OP_NUM=10; # number literal
   OP_NAM=11; # identifier
   OP_STR=11; # string literal
-  
+
   ev3scan_init_op("." ,OP_BIN,12.0);
 
   ev3scan_init_op("++",OP_INC,11.0);
@@ -276,7 +276,7 @@ function ev3scan(expression,words, _wlen,_i,_len,_c,_t,_w){
       }
 
       _t=OP_STR;
-    }else if(_c ~ /\s/){
+    }else if(_c ~ /[[:space:]]/){
       continue; # ignore blank
     }else{
       print_error("mwg_pp.ev3scan","unrecognized character '" _c "'");
@@ -377,7 +377,7 @@ function ev3parse(expression, _wlen,_words,_i,_len,_t,_w,_sid,_p,_sp,_sp1,_sp2,_
         _sp=ev3parse_pop_value(_stk,_p+0.1); # right assoc
       else
         _sp=ev3parse_pop_value(_stk,_p); # left assoc
-        
+
       # overwrite to lhs
       ev3obj[_sp,"+t"]=SE_PREF;
       ev3obj[_sp,"+ot"]=_t;
@@ -437,7 +437,7 @@ function ev3parse(expression, _wlen,_words,_i,_len,_t,_w,_sid,_p,_sp,_sp1,_sp2,_
           _sp2=ev3parse_pop_value(_sid,3.0); # assoc_value_3
           # state: [ ... _sp2] ... _sp(=open) _sp1
           #   _sp and _sp1 must be released manually
-          
+
           _v=(ev3obj[_sp2]!=0&&ev3obj[_sp2]!=""); # TODO: bool
           _w=(_v?"T":"F") _w;
 
@@ -554,7 +554,7 @@ function ev3parse_op_call(dst,w,pobj,parg ,_pobj,_isref,_T,_i,_p){
       }
     }else if(_T==TYPE_OBJ){
       _i=ev3obj_raw_int(_pobj);
-      
+
     }else{
       print_error("mwg_pp.ev3:type","type(" _T ")::operator" w);
     }
