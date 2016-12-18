@@ -227,7 +227,7 @@ function ev_scan(expression,words, _wlen,_i,_len,_c,_t,_w){
           _w=_w _c;
         }
       }
-    }else if(_c ~ /\s/){
+    }else if(_c ~ /[[:space:]]/){
       continue; # ignore blank
     }else{
       print_error("mwg_pp.eval_expr","unrecognizable character '" _c "'");
@@ -341,7 +341,7 @@ function eval_expr(expression, _wlen,_words,_i,_len,_t,_w,_v,_sp,_s){
       _sp--;
 
       if(_w=="[]")_v=int(_v);
-            
+
       _sp++;
       _s[_sp,"t"]="value";
       _s[_sp,"v"]=_v;
@@ -432,8 +432,8 @@ function ev2_expr(expression, _wlen,_words,_i,_len,_t,_w,_v,_sp,_s,_sp1,_optype)
   #  _s[index,"t"]  : SE_PREF  SE_MARK  SE_VALU
   #  _s[index]      : lhs               value
   #  _s[index,"T"]  : dataType          dataType
-  #  _s[index,"c"]  : b+ u!    op      
-  #  _s[index,"l"]  : assoc             
+  #  _s[index,"c"]  : b+ u!    op
+  #  _s[index,"l"]  : assoc
   #
   #  _s[index,"M"]=MOD_ARG;
   #  _s[index,"A"]=length;
@@ -495,11 +495,11 @@ function ev2_expr(expression, _wlen,_words,_i,_len,_t,_w,_v,_sp,_s,_sp1,_optype)
         #-- binary operator
         _l=ev_db_operator[_w,"a"];
         #print "dbg: binary operator level = " _l > "/dev/stderr"
-        
+
         # get lhs
         _sp=ev2_pop_value(_s,_sp,_l); # left assoc
         #_sp=ev2_pop_value(_s,_sp,_l+0.1); # right assoc # TODO =
-        
+
         # overwrite to lhs
         _s[_sp,"t"]=SE_PREF;
         _s[_sp,"p"]="b";
@@ -542,7 +542,7 @@ function ev2_expr(expression, _wlen,_words,_i,_len,_t,_w,_v,_sp,_s,_sp1,_optype)
       }
       _w=_s[_sp,"m"] _w;
       _sp--;
-      
+
 
       # state: [_sp open _sp1]
       if(_sp>=0&&_s[_sp,"t"]==SE_VALU){
@@ -880,7 +880,7 @@ function ev2_apply(stk,iPre,iVal, _pT,_pW,_lhs,_rhs,_lhsT,_rhsT,_result,_i,_a,_b
         stk[iPre,"t"]=SE_VALU;
         stk[iPre,"T"]=_resultT;
         d_data[stk[iPre,"R"]]=_result;
-        
+
         # TODO: array copy?
       }else{
         ev2_copy(stk,iPre,stk,iVal);
@@ -1105,7 +1105,7 @@ function inline_expand(text, _ret,_ltext,_rtext,_mtext,_name,_r,_s,_a,_caps){
       print "(parameter expansion:" _mtext ")! unrecognized expansion." > "/dev/stderr"
       _r=_mtext;
     }
-        
+
     if(_mtext ~ /^\${/){
       # enable re-expansion ${}
       _ret=_ret _ltext;
@@ -1517,17 +1517,17 @@ function data_define(pair, _sep,_i,_k,_v,_capt,_rex){
       _sep=substr(pair,2,RLENGTH-2);
       pair=trim(substr(pair,RLENGTH+1));
     }
-        
+
     _i=_sep!=""?index(pair,_sep):match(pair,/[ \t]/);
     if(_i<=0){
       printf("(#%%data directive)! ill-formed. (pair=%s, _sep=%s)\n",pair,_sep) > "/dev/stderr"
       return 0;
     }
-        
+
     _k=substr(pair,1,_i-1);
     _v=trim(substr(pair,_i+length(_sep)))
     d_data[_k]=_v;
-        
+
     #_t[0];head_token(pair,_t);
     #d_data[_t[0]]=_t[1];
   }
