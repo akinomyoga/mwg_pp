@@ -10,18 +10,18 @@ kabe = [];
 cell = [];
 for (x = 0; x < NX; x++) cell[x] = [], kabe[x] = [];
 
-check = (x,y) => if (0 <= x && x < NX && 0 <= y && y < NY && !cell[x][y]) {
+check = (x, y) => if (0 <= x && x < NX && 0 <= y && y < NY && !cell[x][y]) {
   cell[x][y] = true;
   search(x, y);
   true
 };
 searches = [
-  ((x,y) => if (check(x + 1, y)) kabe[x][y] |= 1),
-  ((x,y) => if (check(x - 1, y)) kabe[x - 1][y] |= 1),
-  ((x,y) => if (check(x, y - 1)) kabe[x][y - 1] |= 2),
-  ((x,y) => if (check(x, y + 1)) kabe[x][y] |= 2)
+  ((x, y) => if (check(x + 1, y)) kabe[x][y] |= 1),
+  ((x, y) => if (check(x - 1, y)) kabe[x - 1][y] |= 1),
+  ((x, y) => if (check(x, y - 1)) kabe[x][y - 1] |= 2),
+  ((x, y) => if (check(x, y + 1)) kabe[x][y] |= 2)
 ];
-search = (x,y) => {
+search = (x, y) => {
   cell[x][y] = true;
   var buff = [0, 1, 2, 3];
   for (var c = 4; c >= 1; c--)
@@ -50,7 +50,7 @@ for (y = 0; y < NY; y++) {
 };
 puts(result);
 
-puts("[" + kabe.join() + "]");
+//puts("[" + kabe.join() + "]");
 check = null;
 searches = null;
 search = null;
