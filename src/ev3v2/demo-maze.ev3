@@ -1,51 +1,57 @@
 #!/usr/bin/env ev3v2
 // -*- mode:js -*-
 
-srand();for(i=10+rand()*10%20|0;i--;)rand();
+srand();
+for (i = 10 + rand() * 10 % 20 | 0; i--; ) rand();
 
-NX=10;NY=10;
-kabe=[];cell=[];
-for(x=0;x<NX;x++)cell[x]=[],kabe[x]=[];
+NX = 10;
+NY = 10;
+kabe = [];
+cell = [];
+for (x = 0; x < NX; x++) cell[x] = [], kabe[x] = [];
 
-check = (x,y) => if(0<=x&&x<NX&&0<=y&&y<NY&&!cell[x][y]){
-  cell[x][y]=true;
-  search(x,y);
+check = (x,y) => if (0 <= x && x < NX && 0 <= y && y < NY && !cell[x][y]) {
+  cell[x][y] = true;
+  search(x, y);
   true
 };
-searches=[
-  ((x,y) => if(check(x+1,y))kabe[x][y]|=1),
-  ((x,y) => if(check(x-1,y))kabe[x-1][y]|=1),
-  ((x,y) => if(check(x,y-1))kabe[x][y-1]|=2),
-  ((x,y) => if(check(x,y+1))kabe[x][y]|=2)
+searches = [
+  ((x,y) => if (check(x + 1, y)) kabe[x][y] |= 1),
+  ((x,y) => if (check(x - 1, y)) kabe[x - 1][y] |= 1),
+  ((x,y) => if (check(x, y - 1)) kabe[x][y - 1] |= 2),
+  ((x,y) => if (check(x, y + 1)) kabe[x][y] |= 2)
 ];
 search = (x,y) => {
-  cell[x][y]=true;
-  var buff=[0,1,2,3];
-  for(var c=4;c>=1;c--)
-    searches[buff.splice(rand()*c,1)[0]](x,y);
+  cell[x][y] = true;
+  var buff = [0, 1, 2, 3];
+  for (var c = 4; c >= 1; c--)
+    searches[buff.splice(rand() * c, 1)[0]](x, y);
 };
 
-search(0,0);
+search(0, 0);
 
-var result="";
+var result = "";
 draw_xkabe = (y) => {
-  result+="|  ";
-  for(x=0;x<NX-1;x++)
-    result+=kabe[x][y]&1?"   ":"|  ";
-  result+="|\n";
+  result += "|  ";
+  for (x = 0; x < NX - 1; x++)
+    result += kabe[x][y] & 1? "   ": "|  ";
+  result += "|\n";
 };
 draw_ykabe = (y) => {
-  for(x=0;x<NX;x++)
-    result+=kabe[x][y]&2?"+  ":"+--";
-  result+="+\n";
+  for (x = 0; x < NX; x++)
+    result += kabe[x][y] & 2? "+  ": "+--";
+  result += "+\n";
 };
 
 draw_ykabe(-1);
-for(y=0;y<NY;y++){
+for (y = 0; y < NY; y++) {
   draw_xkabe(y);
   draw_ykabe(y);
 };
 puts(result);
 
-puts("["+kabe.join()+"]");
-check=null;searches=null;search=null;draw_ykabe=draw_xkabe=null;
+puts("[" + kabe.join() + "]");
+check = null;
+searches = null;
+search = null;
+draw_ykabe = draw_xkabe = null;
