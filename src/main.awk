@@ -178,7 +178,7 @@ function inline_expand(text, _ret,_ltext,_rtext,_mtext,_name,_r,_s,_a,_caps){
       print "(parameter expansion:" _mtext ")! unrecognized expansion." > "/dev/stderr"
       _r=_mtext;
     }
-        
+
     if(_mtext ~ /^\${/){
       # enable re-expansion ${}
       _ret=_ret _ltext;
@@ -590,17 +590,17 @@ function data_define(pair, _sep,_i,_k,_v,_capt,_rex){
       _sep=substr(pair,2,RLENGTH-2);
       pair=trim(substr(pair,RLENGTH+1));
     }
-        
+
     _i=_sep!=""?index(pair,_sep):match(pair,/[ \t]/);
     if(_i<=0){
       printf("(#%%data directive)! ill-formed. (pair=%s, _sep=%s)\n",pair,_sep) > "/dev/stderr"
       return 0;
     }
-        
+
     _k=substr(pair,1,_i-1);
     _v=trim(substr(pair,_i+length(_sep)))
     d_data[_k]=_v;
-        
+
     #_t[0];head_token(pair,_t);
     #d_data[_t[0]]=_t[1];
   }
@@ -797,31 +797,43 @@ function dependency_add(file){
     m_dependency[m_dependency_count++]=file;
   }
 }
-function dependency_generate(output,target, _i,_iMax,_line){
-  if(!target){
-    target=m_rfile;
-    sub(/\.pp$/,"",target);
-    target=target ".out";
+function dependency_generate(output, target, is_phony, _i, _iMax, _line, _file){
+  if (!target) {
+    target = m_rfile;
+    sub(/\.pp$/, "", target);
+    target = target ".out";
   }
 
-  if(m_dependency_count==0)
+  if (m_dependency_count == 0)
     print target ":" > output;
-  else{
-    _iMax=m_dependency_count-1;
-    for(_i=0;_i<m_dependency_count;_i++){
-      _line=_i==0?target ": ":"  ";
-      _line=_line m_dependency[_i];
-      if(_i<_iMax)_line=_line " \\";
+  else {
+    _iMax = m_dependency_count - 1;
+    for (_i = 0; _i < m_dependency_count; _i++) {
+      _file = m_dependency[_i];
+      gsub(/[[:space:]]/, "\\\\&", _file);
+      _line = _i == 0? target ": ": "  ";
+      _line = _line _file;
+      if (_i < _iMax) _line = _line " \\";
       print _line > output;
+    }
+
+    if (is_phony) {
+      for (_i = 0; _i < m_dependency_count; _i++) {
+        _file = m_dependency[_i];
+        gsub(/[[:space:]]/, "\\\\&", _file);
+        printf("%s:\n\n", _file) > output;
+      }
     }
   }
 }
 
-END{
+END {
   # output dependencies
-  DEPENDENCIES_OUTPUT=ENVIRON["DEPENDENCIES_OUTPUT"];
-  if(DEPENDENCIES_OUTPUT)
-    dependency_generate(DEPENDENCIES_OUTPUT,ENVIRON["DEPENDENCIES_TARGET"]);
+  DEPENDENCIES_OUTPUT = ENVIRON["DEPENDENCIES_OUTPUT"];
+  if (DEPENDENCIES_OUTPUT) {
+    is_phony = ENVIRON["DEPENDENCIES_PHONY"];
+    dependency_generate(DEPENDENCIES_OUTPUT, ENVIRON["DEPENDENCIES_TARGET"], is_phony);
+  }
 
-  if(global_errorCount)exit(1);
+  if (global_errorCount) exit(1);
 }

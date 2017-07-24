@@ -29,6 +29,6 @@ $(BINDIR)/mwg_pp.awk: $(OUTDIR)/mwg_pp.awk | $(BINDIR)
 .DELETE_ON_ERROR:
 -include $(OUTDIR)/ev3v2.d
 $(OUTDIR)/ev3v2.d: $(OUTDIR)/ev3v2.awk
-$(OUTDIR)/ev3v2.awk: ev3v2/ev3v2.awk
+$(OUTDIR)/ev3v2.awk: ev3v2/ev3v2.awk | $(OUTDIR)
 	DEPENDENCIES_OUTPUT=$(OUTDIR)/ev3v2.d DEPENDENCIES_TARGET="$@" $(PP0) $< > $@ && { [[ -x "$@" ]] || chmod +x $@; }
 all: $(OUTDIR)/ev3v2.awk
