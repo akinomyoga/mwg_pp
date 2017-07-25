@@ -358,3 +358,27 @@ PPLINENO=1
 
 行番号を出力する。
 例: `#line <行番号> "<ファイル名>"`
+
+```
+PPLINENO_FILE=filename
+```
+
+行番号出力で使用するファイル名を指定する。
+
+```
+DEPENDENCIES_OUTPUT=dependency_filename
+```
+
+Makefile で使うための依存関係をファイル `dependency_filename` に出力する。
+
+```
+DEPENDENCIES_TARGET=target
+```
+
+出力する依存関係の target (コロンの左側に出力するもの) を指定する。
+
+```
+DEPENDENCIES_PHONY=1
+```
+
+依存対象のファイルについて空のルールを出力する。依存対象のファイルが存在しない時に Makefile に無視させるため。
