@@ -1,0 +1,12 @@
+#!/usr/bin/env ./ev3v2
+// -*- mode:js -*-
+
+assert=(condition,message)=> eval(condition)||printf("assertion failed\e[m: %sexpr = (%s).\n",message!=NULL?message+"\n  ":"",condition);
+
+assert('sin(0.0)==0.0');
+assert('cos(0.0)==1.0');
+assert('sinh(0.0)==0.0');
+assert('cosh(0.0)==1.0');
+
+puts("done");
+assert=null;

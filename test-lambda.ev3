@@ -1,0 +1,25 @@
+#!/usr/bin/env ev3v2
+// -*- mode:c++ -*-
+
+puts("== lambda ==");
+assert=(condition,message)=> eval(condition)||printf(sgr_error+"assertion failed\e[m: %sexpr = (%s).\n",message!=NULL?message+"\n  ":"",condition);
+sgr_error="\e[1;32m";
+assert('false',"this message is expected");
+sgr_error="\e[1;31m";
+assert('1');
+assert('!null');
+
+print=puts;
+assert('(1==1)===true');
+
+f=(a,b)=>a+b;
+assert('f(1,2)==3');
+assert('f(3,4)==7');
+
+f=()=>{r+=":"+(++x)};
+r=x=1;f();f();print(r);
+arguments=[0,1];
+
+// 現在の実装だと循環参照になるので。
+f=null;
+assert=null;

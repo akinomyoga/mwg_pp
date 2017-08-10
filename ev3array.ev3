@@ -1,0 +1,13 @@
+#!/usr/bin/env ./ev3v2
+// -*- mode:js -*-
+
+assert=(condition,message)=> eval(condition)||printf("assertion failed\e[m: %sexpr = (%s).\n",message!=NULL?message+"\n  ":"",condition);
+
+assert('[0,1,2].join()=="0,1,2"',[0,1,2].join());
+assert('a=[0,1,2,3];a.splice(1,2).join()=="1,2"&&a.join()=="0,3"');
+
+// Array#slice
+assert('[0,1,2,3,4].slice(1,-2).join()=="1,2"');
+
+puts("done");
+assert=null;
