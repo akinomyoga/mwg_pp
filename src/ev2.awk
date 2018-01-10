@@ -28,8 +28,8 @@ function ev2_expr(expression, _wlen,_words,_i,_len,_t,_w,_v,_sp,_s,_sp1,_optype)
   #  _s[index,"t"]  : SE_PREF  SE_MARK  SE_VALU
   #  _s[index]      : lhs               value
   #  _s[index,"T"]  : dataType          dataType
-  #  _s[index,"c"]  : b+ u!    op      
-  #  _s[index,"l"]  : assoc             
+  #  _s[index,"c"]  : b+ u!    op
+  #  _s[index,"l"]  : assoc
   #
   #  _s[index,"M"]=MOD_ARG;
   #  _s[index,"A"]=length;
@@ -48,7 +48,7 @@ function ev2_expr(expression, _wlen,_words,_i,_len,_t,_w,_v,_sp,_s,_sp1,_optype)
     #-- process token --
     if(_t=="n"){
       _sp++;
-      _s[_sp]=+_w;
+      _s[_sp]=0+_w;
       _s[_sp,"t"]=SE_VALU;
       _s[_sp,"T"]=TYPE_NUM;
       _s[_sp,"M"]=MOD_NUL;
@@ -91,11 +91,11 @@ function ev2_expr(expression, _wlen,_words,_i,_len,_t,_w,_v,_sp,_s,_sp1,_optype)
         #-- binary operator
         _l=ev_db_operator[_w,"a"];
         #print "dbg: binary operator level = " _l > "/dev/stderr"
-        
+
         # get lhs
         _sp=ev2_pop_value(_s,_sp,_l); # left assoc
         #_sp=ev2_pop_value(_s,_sp,_l+0.1); # right assoc # TODO =
-        
+
         # overwrite to lhs
         _s[_sp,"t"]=SE_PREF;
         _s[_sp,"p"]="b";
@@ -138,7 +138,7 @@ function ev2_expr(expression, _wlen,_words,_i,_len,_t,_w,_v,_sp,_s,_sp1,_optype)
       }
       _w=_s[_sp,"m"] _w;
       _sp--;
-      
+
 
       # state: [_sp open _sp1]
       if(_sp>=0&&_s[_sp,"t"]==SE_VALU){
@@ -476,7 +476,7 @@ function ev2_apply(stk,iPre,iVal, _pT,_pW,_lhs,_rhs,_lhsT,_rhsT,_result,_i,_a,_b
         stk[iPre,"t"]=SE_VALU;
         stk[iPre,"T"]=_resultT;
         d_data[stk[iPre,"R"]]=_result;
-        
+
         # TODO: array copy?
       }else{
         ev2_copy(stk,iPre,stk,iVal);

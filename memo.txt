@@ -27,10 +27,9 @@
 
     ここまで凝った名前をつける程の物なのかという疑問は残る。
 
-
 
 -------------------------------------------------------------------------------
-  ChangeLog (mwg_pp.awk の歴史)
+  ChangeLog (mwg_pp.awk の過去)
 -------------------------------------------------------------------------------
 
 [mwg_pp.awk v2.2]
@@ -62,7 +61,7 @@
     前回 include したファイルのディレクトリになっている。
     include し終わった後に m_lineno_cfile を復元する様に。
   * END: エラーがあった場合は正常終了ではなく exit(1) をする様に変更。
-    
+
 2014-12-14
   * #%begin, #%end: 追加。それぞれ #%( #%) と同じ意味。
     #%( #%) の様な中途半端な括弧を使うとエディタによってインデントがおかしくなるので。
@@ -102,7 +101,7 @@
   * 演算子データベースの整理。
   * 代入演算子の実装 = *= += etc
   * メンバ関数の増強
-  
+
 2011-12-05
   * 出力先の切り替え機能。
   * ディレクティブ形式の拡張 (PPC_C, PPC_CPP 等)
@@ -152,7 +151,7 @@
   ではないかと思う。また、aaa.data を見れば遅くとも 2010-10-19 夜中の時点で
   #%define, #%expand, #%data, modify_text, パラメータ展開 等の機能が実装されて
   いた。
-  
+
     File: `/home/koichi/test/mwg_pp'
    Birth: 2010-10-19 07:27:38.640625000 +0900
     File: `/home/koichi/test/mwg_pp/test.pp'
@@ -161,14 +160,14 @@
     File: `/home/koichi/test/mwg_pp/aaa.data'
   Modify: 2010-10-20 00:01:12.781250000 +0900
    Birth: 2010-10-19 07:30:15.296875000 +0900
-  [koichi@gauge 1 test]$ cat /home/koichi/test/mwg_pp/test.pp 
-  
+  [koichi@gauge 1 test]$ cat /home/koichi/test/mwg_pp/test.pp
+
   ##%exec ls -l
   #%exec cat ???.data
   #%exec echo "current working directory is $PWD"
-  
-  
-  [koichi@gauge 1 test]$ cat /home/koichi/test/mwg_pp/aaa.data 
+
+
+  [koichi@gauge 1 test]$ cat /home/koichi/test/mwg_pp/aaa.data
   #%data(:::) hoge:::hello
   #%define 1
   aaa
@@ -225,3 +224,103 @@
   析のコードを楽に記述する為の Addin を作っていたのでそれを少し弄って作成した
   筈。現在の define と expand 及び .r/// の機能は元々この時点で導入した物 (文法
   は今とは異なるが)。define された物を template と呼んでいた。
+
+
+-------------------------------------------------------------------------------
+  Done
+-------------------------------------------------------------------------------
+
+2018-01-10
+
+* どうも ble.sh の生成がおかしい。
+
+  Cygwin 上で実行すると時間計測モードになってしまっている。
+  何故か %[a=0] と %[a=1!=0] で両方共変数の中身は 0 なのに前者は true で後者は false に評価される。
+
+  [再現性]
+
+  | 調べてみると gawk の version が異なる。Cygwin は 4.2 の様である。
+  |
+  | しかし、本当に原因は gawk だろうか。もしかすると正規表現の
+  | collation か POSIX character class の問題かもしれない。
+  | しかし、もし characater class の問題だとするとそれはそれで変である。
+  | 0 が数字として認識されないとなると変数名として解釈されることになり、
+  | だとすると文字列の 0 ということにはならないからである。
+  |
+  | その前に Gawk の version についても確認しておく。gawk の version を確認すると
+  | Cygwin:     GNU Awk 4.2.0, API: 2.0 (GNU MPFR 3.1.6-p1, GNU MP 6.1.2)
+  | pad/local:  GNU Awk 4.1.4, API: 1.1 (GNU MPFR 3.1.5, GNU MP 6.1.1)
+  | pad:        GNU Awk 4.1.3, API: 1.1 (GNU MPFR 3.1.5, GNU MP 6.1.1)
+  | tkyntn:     GNU Awk 4.1.3, API: 1.1 (GNU MPFR 3.1.4, GNU MP 6.1.0)
+  | うーん。API: 2.0 に変わったのがやはり気になる。変更点の一覧は以下にある。
+  | https://lists.gnu.org/archive/html/info-gnu/2017-10/msg00004.html
+  | 簡単に眺めてみたが関係の有りそうなものは見当たらない。
+  |
+  | 実際に gawk-4.1.4 と gawk-4.2.0 で振る舞いを比較してみる事にした。
+  |
+  | $ gawk -f mwg_pp.awk src/check/20180110-ev2.pp
+  |   OK.
+  | $ gawk-4.2.0 -f mwg_pp.awk src/check/20180110-ev2.pp
+  |   This is unexpected.
+
+  つまり、gawk の振る舞いに起因して起こっているバグだという事が確定した。
+
+  [原因]
+
+  単に %[a=0] とすると文字列として格納されているのではないか。
+  →うーん。調べてみると文字列という事になっている訳でもないようだ。
+  何故かと言うと a=0,b=1,c=a+b とするとちゃんと正しい結果 1 になるからである。
+  では数値型と真偽値型という違いなのだろうか。
+
+  調べてみたが真偽値型というものは ev2 上は存在しない。
+  もっとよく調べてみると if directive では、
+  eval_expr の戻り値をそのまま判定に使用している。
+  そして eval_expr は ev2_expr をそのまま返す。
+  ev2_expr は評価値をそのまま返す。
+
+  gawk の真偽値の評価が変わったのだろうか。
+  と思って試してみたが別に変わったという事はないようだ。
+
+    $ gawk -f src/check/20180110-ev2.awk
+    0 is false
+    "0" is true
+    (0 == 1) is false
+    "" is false
+    $ gawk-4.2.0 -f src/check/20180110-ev2.awk
+    同上
+
+  という事は評価した時点で値が変わっている?
+  今度は ev2_eval で評価した結果を調べてみる。
+
+    $ gawk -f src/check/20180110-ev2-test2.awk
+    0 is false
+    "0" is true
+    (0 == 1) is false
+    "" is false
+    $ gawk-4.2.0 -f src/check/20180110-ev2-test2.awk
+    0 is true (0: string)
+    "0" is true (0: string)
+    (0 == 1) is false (0: number)
+    "" is false (: string)
+
+  どうも文字列になっている様だ。
+
+  因みに ev1scan 時には全て文字列になっている。
+  数値リテラルの場合にはトークンの種類として _t == "n" が設定される。
+  そして ev2 では _t == "n" の時に +_w している。
+  これだ。新しい gawk では +_w しても数値にならないという事なのだろう。
+  実際に試してみる事にする。
+
+    $ gawk -f src/check/20180110-ev2-test.awk test3
+    $ gawk-4.2.0 -f src/check/20180110-ev2-test.awk test3
+
+  →実際にそうだった。+_w の代わりに 0+_w とすれば動きそうだ。
+
+  [修正]
+
+  直した。
+
+  他にも類似の場所がないか探してみると、大体の場所で 0+... としていた。
+  つまり、この箇所だけで 0+_w になっていたのだ。
+  因みに nawk で試してみた所、nawk は新しい gawk と同じ動作だ。
+  つまり、gawk が nawk に合わせる形で変更したのだろう。
