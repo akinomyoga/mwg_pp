@@ -452,7 +452,7 @@ function ev2_expr(expression, _wlen,_words,_i,_len,_t,_w,_v,_sp,_s,_sp1,_optype)
     #-- process token --
     if(_t=="n"){
       _sp++;
-      _s[_sp]=+_w;
+      _s[_sp]=0+_w;
       _s[_sp,"t"]=SE_VALU;
       _s[_sp,"T"]=TYPE_NUM;
       _s[_sp,"M"]=MOD_NUL;

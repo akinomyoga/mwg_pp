@@ -34,8 +34,15 @@
 
 [mwg_pp.awk v2.2]
 
-2015-07-06
-  * mwgpp v2.2 分岐
+2018-01-10 fix a bug caused by API change of gawk-4.2.0
+
+2017-07-24 support DEPENDENCIES_PHONY
+
+2016-12-19 fix a bug that \s is used instead of [[:space:]]
+
+2016-04-03 support dependencies
+
+2015-07-06 mwgpp v2.2 分岐
 
 ------------------------------------------------------------------------------
 [mwg_pp.awk v2.1]
