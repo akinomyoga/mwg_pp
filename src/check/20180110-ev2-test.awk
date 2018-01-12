@@ -44,11 +44,27 @@ function print_error(title,msg){
 @include "../ev1scan.awk"
 @include "../ev2.awk"
 
-function my_typeof(x) {
-  if (gawk_api >= 200)
+function my_typeof(x, v1, v2) {
+  if (gawk_ver >= 40200)
     return typeof(x);
-  else
-    return "<unsupported>";
+
+  if (x == 0) {
+    if (x)
+      return "string";
+    else
+      return "number";
+  } else {
+    OCONVFMT = CONVFMT;
+    CONVFMT = "[%g]";
+    v1 = "" x;
+    CONVFMT = "(%g)";
+    v2 = "" x;
+    CONVFMT = OCONVFMT;
+    if (v1 != v2)
+      return "number";
+    else
+      return "string";
+  }
 }
 
 function test2() {
@@ -117,8 +133,9 @@ function test3() {
 }
 
 BEGIN {
-  # gawk_api = GAWK_API_MAJOR_VERSION * 100 + GAWK_API_MINOR_VERSION;
-  gawk_api = 200; # awk スクリプト内で取得する手段はない?
+  gawk_ver = 0;
+  if (match(PROCINFO["version"], /^([0-9]+)\.([0-9]+)(\.([0-9]+))?/, m) > 0)
+    gawk_ver = m[1] * 10000 + m[2] * 100 + m[4];
 
   if (ARGV[1] == "test2") {
     test2();
