@@ -8,6 +8,22 @@
 
 **経緯**: 本当は自分用プリプロセッサ mwg_pp.awk の 1 コンポーネント mwg_pp:ev2(eval_expr) を置き換える為に試験的に作っていた mwg_pp:ev3 の major version 2 だった。遅すぎるので実用にならないと判断され放棄された。
 
+## ダウンロード (`git clone`)
+
+`git clone` する時は `ev2v3-release` ブランチを clone して下さい。
+
+**with https**
+
+```console
+$ git clone -b ev2v3-release https://github.com/akinomyoga/mwg_pp.git
+```
+
+**with ssh**
+
+```console
+$ git clone -b ev2v3-release git@github.com/akinomyoga/mwg_pp.git
+```
+
 ## 例 demo-sierpinski.ev3
 
 ```js
