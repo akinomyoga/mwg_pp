@@ -10,18 +10,18 @@
 
 ## ダウンロード (`git clone`)
 
-`git clone` する時は `ev2v3-release` ブランチを clone して下さい。
+`git clone` する時は `ev3v2-release` ブランチを clone して下さい。
 
 **with https**
 
 ```console
-$ git clone -b ev2v3-release https://github.com/akinomyoga/mwg_pp.git
+$ git clone -b ev3v2-release https://github.com/akinomyoga/mwg_pp.git
 ```
 
 **with ssh**
 
 ```console
-$ git clone -b ev2v3-release git@github.com/akinomyoga/mwg_pp.git
+$ git clone -b ev3v2-release git@github.com:akinomyoga/mwg_pp.git
 ```
 
 ## 例 demo-sierpinski.ev3
