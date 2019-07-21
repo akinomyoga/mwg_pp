@@ -237,6 +237,17 @@
   Done
 -------------------------------------------------------------------------------
 
+2019-07-21
+
+* ble.sh の生成でエラーメッセージが生じる様になったので修正する。
+
+  gawk: ext/mwg_pp.awk:886: 警告: regexp escape sequence `\:' is not a known regexp operator
+  gawk: ext/mwg_pp.awk:928: 警告: regexp escape sequence `\#' is not a known regexp operator
+
+  調べてみると全体に渡って正規表現の中の : が \: にエスケープされている。
+  これらは全て消去する事にした。ext/mwg_pp-2.1.awk の方も修正する必要がある。
+  うーん。これは mwg_pp-2.1.awk の方も修正する必要があるのではないか。
+
 2018-01-10
 
 * どうも ble.sh の生成がおかしい。

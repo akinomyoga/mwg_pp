@@ -30,7 +30,7 @@ function slice(text,start,end, _l){
 }
 
 #function head_token(text,ret,  _i,_l){
-#  _i=match(text,/[^-a-zA-Z\:0-9_]/);
+#  _i=match(text,/[^-a-zA-Z:0-9_]/);
 #  _l=_i?_i-1:length(text);
 #  ret[0]=trim(substr(text,1,_l));
 #  ret[1]=trim(substr(text,_l+1));
@@ -109,17 +109,17 @@ function inline_expand(text, _ret,_ltext,_rtext,_mtext,_name,_r,_s,_a,_caps){
     _name=unescape(slice(_mtext,2,-1));
     if(match(_name,/^[-a-zA-Z0-9_]+$/)>0){                     # ${key}
       _r="" d_data[_name];
-    }else if(match(_name,/^[-a-zA-Z0-9_]+\:-/)>0){             # ${key:-alter}
+    }else if(match(_name,/^[-a-zA-Z0-9_]+:-/)>0){             # ${key:-alter}
       _s["key"]=slice(_name,0,RLENGTH-2);
       _s["alter"]=slice(_name,RLENGTH);
       _r="" d_data[_s["key"]];
       if(_r=="")_r=_s["alter"];
-    }else if(match(_name,/^[-a-zA-Z0-9_]+\:\+/)>0){            # ${key:+value}
+    }else if(match(_name,/^[-a-zA-Z0-9_]+:\+/)>0){            # ${key:+value}
       _s["key"]=slice(_name,0,RLENGTH-2);
       _s["value"]=slice(_name,RLENGTH);
       _r="" d_data[_s["key"]];
       _r=_r==""?"":_s["value"];
-    }else if(match(_name,/^[-a-zA-Z0-9_]+\:\?/)>0){            # ${key:?warn}
+    }else if(match(_name,/^[-a-zA-Z0-9_]+:\?/)>0){            # ${key:?warn}
       _s["key"]=slice(_name,0,RLENGTH-2);
       _s["warn"]=slice(_name,RLENGTH);
       _r="" d_data[_s["key"]];
@@ -128,7 +128,7 @@ function inline_expand(text, _ret,_ltext,_rtext,_mtext,_name,_r,_s,_a,_caps){
         _ltext=_ltext _mtext;
         _r="";
       }
-    }else if(match(_name,/^([-a-zA-Z0-9_]+)\:([0-9]+)\:([0-9]+)$/,_caps)>0){ # ${key:start:length}
+    }else if(match(_name,/^([-a-zA-Z0-9_]+):([0-9]+):([0-9]+)$/,_caps)>0){ # ${key:start:length}
       _r=substr(d_data[_caps[1]],_caps[2]+1,_caps[3]);
     }else if(match(_name,/^([-a-zA-Z0-9_]+)(\/\/?)(([^/]|\\.)+)\/(.*)$/,_caps)>0){ # ${key/before/after}
       _r=d_data[_caps[1]];
@@ -151,7 +151,7 @@ function inline_expand(text, _ret,_ltext,_rtext,_mtext,_name,_r,_s,_a,_caps){
 
       _r=d_data[_caps[1]];
       sub(_caps[3],"",_r);
-    }else if(match(_name,/^\#[-a-zA-Z0-9_]+$/)>0){             # ${#key}
+    }else if(match(_name,/^#[-a-zA-Z0-9_]+$/)>0){             # ${#key}
       _r=length("" d_data[substr(_name,2)]);
     }else if(match(_name,/^([-a-zA-Z0-9_]+)(\..+)$/,_caps)>0){ # ${key.modifiers}
       _r=modify_text(d_data[_caps[1]],_caps[2]);
@@ -398,7 +398,7 @@ function range_end(args, _cmd,_arg,_txt,_clines,_cfiles){
 }
 
 function dctv_define(args,  _cap,_name,_name2){
-  if(match(args,/^([-A-Za-z0-9_\:]+)[[:space:]]*(\([[:space:]]*)?$/,_cap)>0){
+  if(match(args,/^([-A-Za-z0-9_:]+)[[:space:]]*(\([[:space:]]*)?$/,_cap)>0){
     # dctv: #%define hoge
     # dctv: #%define hoge (
     _name=_cap[1];
@@ -406,7 +406,7 @@ function dctv_define(args,  _cap,_name,_name2){
       range_end("");
     else
       range_begin("define",_name);
-  }else if(match(args,/^([-_\:[:alnum:]]+)[[:space:]]+([-_\:[:alnum:]]+)(.*)$/,_cap)>0){
+  }else if(match(args,/^([-_:[:alnum:]]+)[[:space:]]+([-_:[:alnum:]]+)(.*)$/,_cap)>0){
     # dctv: #%define a b.mods
     _name=_cap[1];
     _name2=_cap[2];
@@ -498,7 +498,7 @@ function dctv_else(  _cap,_cmd){
 }
 
 function dctv_expand(args,  _cap,_txt,_type){
-  if(match(args,/^([-a-zA-Z\:0-9_]+|[\(])(.*)$/,_cap)>0){
+  if(match(args,/^([-a-zA-Z:0-9_]+|[\(])(.*)$/,_cap)>0){
     if(_cap[1]=="("){
       _type=1;
     }else{
@@ -520,7 +520,7 @@ function dctv_expand(args,  _cap,_txt,_type){
 }
 
 function dctv_modify(args,  _i,_len,_name,_content){
-  _i=match(args,/[^-a-zA-Z\:0-9_]/);
+  _i=match(args,/[^-a-zA-Z:0-9_]/);
   _len=_i?_i-1:length(args);
   _name=substr(args,1,_len);
   args=trim(substr(args,_len+1));
@@ -693,16 +693,16 @@ function process_line(line,_line,_text,_ind,_len,_directive, _cap){
   if(m_comment_cpp)
     sub(/^\/\//,"#",_line);
   if(m_comment_pragma)
-    sub(/^[[:space:]]*\#[[:space:]]*pragma/,"#",_line);
+    sub(/^[[:space:]]*#[[:space:]]*pragma/,"#",_line);
   if(m_comment_c&&match(_line,/^\/\*(.+)\*\/$/,_cap)>0)
     _line="#" _cap[1];
 
   if(_line ~ /^#%[^%]/){
     # cut directive
-    if(match(_line,/^#%[ \t]*([-a-zA-Z_0-9\:]+)(.*)$/,_cap)>0){
+    if(match(_line,/^#%[ \t]*([-a-zA-Z_0-9:]+)(.*)$/,_cap)>0){
       _directive=_cap[1];
       _text=trim(_cap[2]);
-    }else if(match(_line,/^#%[ \t]*([^-a-zA-Z_0-9\:])(.*)$/,_cap)>0){
+    }else if(match(_line,/^#%[ \t]*([^-a-zA-Z_0-9:])(.*)$/,_cap)>0){
       _directive=_cap[1];
       _text=trim(_cap[2]);
     }else{
