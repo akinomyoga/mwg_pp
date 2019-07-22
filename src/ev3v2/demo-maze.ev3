@@ -1,5 +1,5 @@
-#!/usr/bin/env ev3v2
-// -*- mode:js -*-
+#!/usr/bin/env ev3v2.awk
+// -*- mode: js -*-
 
 srand();
 for (i = 10 + rand() * 10 % 20 | 0; i--; ) rand();
@@ -16,10 +16,10 @@ check = (x, y) => if (0 <= x && x < NX && 0 <= y && y < NY && !cell[x][y]) {
   true
 };
 searches = [
-  ((x, y) => if (check(x + 1, y)) kabe[x][y] |= 1),
-  ((x, y) => if (check(x - 1, y)) kabe[x - 1][y] |= 1),
-  ((x, y) => if (check(x, y - 1)) kabe[x][y - 1] |= 2),
-  ((x, y) => if (check(x, y + 1)) kabe[x][y] |= 2)
+  (x, y) => { if (check(x + 1, y)) kabe[x][y] |= 1; },
+  (x, y) => { if (check(x - 1, y)) kabe[x - 1][y] |= 1; },
+  (x, y) => { if (check(x, y - 1)) kabe[x][y - 1] |= 2; },
+  (x, y) => { if (check(x, y + 1)) kabe[x][y] |= 2; }
 ];
 search = (x, y) => {
   cell[x][y] = true;
@@ -34,12 +34,12 @@ var result = "";
 draw_xkabe = (y) => {
   result += "|  ";
   for (x = 0; x < NX - 1; x++)
-    result += kabe[x][y] & 1? "   ": "|  ";
+    result += kabe[x][y] & 1 ? "   " : "|  ";
   result += "|\n";
 };
 draw_ykabe = (y) => {
   for (x = 0; x < NX; x++)
-    result += kabe[x][y] & 2? "+  ": "+--";
+    result += kabe[x][y] & 2 ? "+  " : "+--";
   result += "+\n";
 };
 
