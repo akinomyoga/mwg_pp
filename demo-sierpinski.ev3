@@ -1,4 +1,4 @@
-#!/usr/bin/env ev3v2
+#!/usr/bin/env ./ev3v2
 // -*- mode:c++ -*-
 arr = [1];
 for (n = 0; n < 64; n++) {

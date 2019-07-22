@@ -1,4 +1,4 @@
-#!/usr/bin/env ev3v2
+#!/usr/bin/env ./ev3v2
 // -*- mode:c++ -*-
 
 puts("== FizzBuzz ==");
