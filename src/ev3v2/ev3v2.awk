@@ -2638,6 +2638,10 @@ function ev3eval_equals(lhs, rhs, exact, _ltype, _rtype, _lclass, _rclass, _i, _
   }
 }
 
+function ev3eval_unsigned(value) {
+  return value >= 0 ? value : value + 0x100000000;
+}
+
 # 遅延なし二項演算子評価: dst に値を設定する様にしたが却って遅い
 function ev3eval_evalBinaryExpressionByValue(oword, lhs, rhs, _ltype, _rtype, _rlhs, _rrhs, _vlhs, _vrhs, _vret, _ret, _lvalue) {
   if (oword ~ /^([-+*\/%\|^&]|<<|>>)$/) {
@@ -2663,11 +2667,11 @@ function ev3eval_evalBinaryExpressionByValue(oword, lhs, rhs, _ltype, _rtype, _r
     else if (oword == "*") _vret = _vlhs * _vrhs;
     else if (oword == "/") _vret = _vlhs / _vrhs;
     else if (oword == "%") _vret = _vlhs % _vrhs;
-    else if (oword == "|") _vret = or(_vlhs, _vrhs);
-    else if (oword == "^") _vret = xor(_vlhs, _vrhs);
-    else if (oword == "&") _vret = and(_vlhs, _vrhs);
-    else if (oword == "<<") _vret = lshift(_vlhs, _vrhs);
-    else if (oword == ">>") _vret = rshift(_vlhs, _vrhs);
+    else if (oword == "|") _vret = or(ev3eval_unsigned(_vlhs), ev3eval_unsigned(_vrhs));
+    else if (oword == "^") _vret = xor(ev3eval_unsigned(_vlhs), ev3eval_unsigned(_vrhs));
+    else if (oword == "&") _vret = and(ev3eval_unsigned(_vlhs), ev3eval_unsigned(_vrhs));
+    else if (oword == "<<") _vret = lshift(ev3eval_unsigned(_vlhs), ev3eval_unsigned(_vrhs));
+    else if (oword == ">>") _vret = rshift(ev3eval_unsigned(_vlhs), ev3eval_unsigned(_vrhs));
 
     return ev3obj_newScal(TYPE_NUM, _vret);
   }
