@@ -409,6 +409,8 @@ function ev2_funcall(dDict, dName, funcname, aDict, aName, _a, _i, _c, _result, 
     _result = slice(_a[0], _a[1], _a[2]);
   } else if (funcname == "length") {
     _result = length(_a[0]);
+  } else if (funcname == "getenv") {
+    _result = ENVIRON[_a[0]];
   } else {
     print_error("mwg_pp.eval", "unknown function " funcname);
     _result = 0;
