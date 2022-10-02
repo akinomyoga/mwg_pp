@@ -311,7 +311,7 @@ key.modifiers
   - `cos(value)`
   - `tan(value)`
   - `atan(value)`
-  - `atan2(value)`
+  - `atan2(y, x)`
   - `exp(value)`
   - `log(value)`
   - `sinh(value)`
@@ -322,15 +322,18 @@ key.modifiers
   - `srand()`
 - 文字列操作
   - `trim(text)`
-  - `sprintf(fmt,v1,v2,v3,v4,v5,v6,v7,v8,v9)`
+  - `sprintf(fmt, ...)` (可変長引数は9つまで)
   - `length(text)`
-  - `slice(text,start,end)`
+  - `slice(text, start, end)`
   - `text.length`
-  - `text.replace(reg_before,txt_after)`
-  - `text.Replace(reg_before,txt_after)`
-  - `text.slice(start,end)`
+  - `text.replace(reg_before, txt_after)`
+  - `text.Replace(reg_before, txt_after)`
+  - `text.slice(start, end)`
   - `text.tolower()`
   - `text.toupper()`
+- システム
+  - `getenv(var)` 環境変数の値を取得
+  - `system(cmd)` コマンドの標準出力を取得
 
 ## 環境変数
 
