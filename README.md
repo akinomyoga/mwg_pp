@@ -1,52 +1,60 @@
+[ Languages: **English** | [日本語](README.ja_JP.md) (Japanese) ]
+
 # mwg_pp
 
-mwg_pp は awk で書かれた行指向のプリプロセッサである。
-mwg_pp は複数の機能の組み合わせになっている。
+`mwg_pp` is a line-oriented preprocessor written in AWK.
 
-- `mwg_pp:directives`: 基本的なプリプロセッサディレクティブの指定。他の機能はこの機能を用いて間接的に呼び出される。
-- `mwg_pp:modifiers`: テキストに対する変換を実行する。
-- `mwg_pp:params`: テキスト中に埋め込まれたパラメータ展開式を評価する。
-- `mwg_pp:eval_expr`: C言語に似た構文の式を評価する。
+# 1. Language definition
 
-## mwg_pp:directives
+`mwg_pp` is composed of multiple independent features:
+
+- `mwg_pp:directives`: Basic preprocessor directives.  The other features are
+  indirectly invoked through directives.
+- `mwg_pp:modifiers`: Transformation of texts
+- `mwg_pp:params`: Evaluation of parameter expansions embedded in texts
+- `mwg_pp:eval_expr`: Evaluation of expressions of a syntax similar to C/C++
+
+## 1.1 mwg_pp:directives
 
 ### define / m
 
-`define` の代わりに省略形として `m` を使える。
+Abbreviation `m` can be used instead of `define`.
 
 ```c
-#%define id
+#%define ID
 ...
-#%end <modifiers>
+#%end MODIFIERS
 ```
 
-... の内容を modifiers で変換し、変数 `id` に格納する。
+This transforms the contents `...` using `MODIFIERS` and stores the result in
+the variable `ID`.
 
 ```c
-#%define id1 id2 <modifiers>
+#%define ID1 ID2 MODIFIERS
 ```
 
-変数 id2 の内容を modifiers で変換し、変数 `id1` に格納する。
+This transforms the value of the variable `ID2` using `MODIFIERS` and stores
+the result in the variable `ID1`.
 
 
 ### expand / x
 
-`expand` の代わりに省略形として `x` を使える。
+Abbreviation `x` can be used instead of `expand`.
 
 ```c
 #%expand
 ...
-#%end <modifiers>
+#%end MODIFIERS
 ```
 
-`...` の内容を modifiers で変換して出力する。
+This transforms the contents `...` using `MODIFIERS` and output the result.
 
 ```c
-#%expand id <modifiers>
+#%expand ID MODIFIERS
 ```
 
-変数 `id` の内容を modifiers で変換し、出力する。省略形として `expand` の代わりに `x` を使える。
-
+This transforms the value of the variable `ID` using `MODIFIERS` and output
+the result.
 
 ### begin / (
 
@@ -62,94 +70,104 @@ mwg_pp は複数の機能の組み合わせになっている。
 #%)
 ```
 
-... は出力されない。中で指定したディレクティブは処理される。
+Process directives in `...`, but the result is discarded.
 
 ### \# (comment)
 
 ```c
-#%# text
+#%# COMMENT
 ```
 
-text は無視される。
-
+This is a comment. `COMMENT` is ignored.
 
 ### exec / $
 
-コマンドの実行、または出力先の変更を行う。キーワード `exec` の代わりに省略形として `$` を使える。
+This executes a shell command or changes the output/input stream.  The short
+form `$` can be used instead of keyword `exec`.
 
 ```
-#%exec command
+#%exec COMMAND
 ```
 
-command を shell で実行し、その標準出力を読み取って出力する。名前は exec だが command 実行後は復帰して処理を継続する。
+The command `COMMAND` is executed in the shell, and its standard output is used
+as the output.  Despite its name being shell's `exec`, preprocessing continues
+after the execution of the command.
 
 ```
-#%exec> filename
+#%exec> FILENAME
 ```
 
-現在の最終出力先を filename に変更する。始めにファイル filename の中身をクリアする。
+The current output target is switched to `FILENAME`.  The existing contents of
+`FILENAME`, if any, will be cleared.
 
 ```
-#%exec>> filename
+#%exec>> FILENAME
 ```
 
-現在の最終出力先を filename に変更する。ファイル filename の末尾に追記する。
+The current output target is switched to `FILENAME`.  The output is appended to
+the existing contents of `FILENAME`, if any.
 
 ```c
 #%exec>
 ```
 
-現在の最終出力先を標準出力 (既定の出力先) に変更する。
+The current output target is reset to the standard output of the current
+process.
 
 ### eval / [expr]
 
 ```c
-#%eval expr
+#%eval EXPR
 ```
 ```c
-#%[expr]
+#%[EXPR]
 ```
 
-式 expr を評価する。
+Evaluates the expression `EXPR`.
 
 
 ### include / <
 
-指定したファイルの内容を読み取って出力する。`include` の省略形として `<` が使える。
+Process the contents of the specified file.  The short form `<` can be used
+instead of `include`.
 
 ```c
-#%include filename
+#%include FILENAME
 ```
 ```c
-#%include "filename"
+#%include "FILENAME"
 ```
 
-filename が / で始まる場合は絶対パスと解釈する。
-それ以外の場合は、入力ファイルからの相対パスと解釈する。
-現在の入力が標準入力からの場合は、カレントディレクトリからの相対パスでファイルを読み取る。
+If the `FILENAME` starts with `/`, it is interpreted as an absolute path.
+Otherwise, it is considered the path relative to the current file.  When the
+current file is the standard input, the relative path is considered to be the
+path relative to the current working directory.
 
 ```c
-#%include <filename>
+#%include <FILENAME>
 ```
 
-ファイルは `$HOME/.mwg/mwgpp/include` 以下のパスで指定する。
+The `FILENAME` is searched under `$HOME/.mwg/mwgpp/include`.
 
 ### if
 
 ```c
-#%if expr1
+#%if EXPR1
 ...
-#%elif expr2
+#%elif EXPR2
 ...
 #%else
 ...
 #%end
 ```
 
-式 expr の値で条件分岐を実施する。
-条件に合致する ... を出力し、他は無視する。
+Perform conditional branching based on the value of `EXPR1`, `EXPR2`, and so
+on.  This processes the contents `...` of the selected branch and ignore the
+others.
 
-### DEPRECATED
+### Deprecated directives
+
+These are deprecated directives.
 
 ```c
 #%define id ( ... #%) <modifiers>
@@ -179,129 +197,141 @@ filename が / で始まる場合は絶対パスと解釈する。
   use #%m id id <modifiers>
 ```
 
-未実装
+Not implemented:
 
 ```c
 #%add id ( ... #%) <modifiers>
 ```
 
-### REMOVED
+### Removed directives
 
-未定
+So far, no constructs were removed.  Some directives were removed at some
+point, but I decided to revert them for the backward compatibility.
 
-## mwg_pp:modifiers
+## 1.2 mwg_pp:modifiers
 
-以下の記述を 0 個以上繋げた物である。
-
-```
-.r|reg_before|txt_after|
-```
-
-置換を実行する。全ての一致を置換する。
+*modifiers* are a sequence of any of the following elements. *modifiers* can be
+an empty sequence.
 
 ```
-.R|reg_before|txt_after|
+.r|REGEX|STRING|
 ```
 
-置換を実行する。全ての一致を置換する。
-txt_after に前方参照 $n を指定できる。
+This replaces all the occurrences of substring matching the regular expression
+`REGEX` with `STRING`.
 
 ```
-.f|reg_var|expr_begin|expr_end|
+.R|REGEX|REPLACEMENT|
 ```
 
-reg_var を整数に置換しつつ、繰り返し展開を行う。
+This replaces all the occurrences of substring matching the regular expression
+`REGEX` with `REPLACEMENT`.  The backward references of the form `$n` (where
+`n` is a number) in `REPLACEMENT` are expanded to the corresponding captures by
+`REGEX`.
+
+```
+.f|REGEX|EXPR_BEGIN|EXPR_END|
+```
+
+This repeats the target text with `REGEX` replaced with an integer in the range
+`EXPR_BEGIN` to `EXPR_END`.
 
 ```
 .i
 ```
 
-mwg_pp:param を適用する。
+This applies `mwg_pp:param` to the target text.
 
-## mwg_pp:param
+## 1.3 mwg_pp:param
 
-構成: `$ <括弧> <中身> <括弧>`
+This processes the following pattern embedded in the target text:
 
-### `<括弧>`
+```
+$ DELIM PARAM_SPEC DELIM
+```
+
+### `DELIM`
+
+There are two types of parameter expansions:
 
 ```
 ${...}
-  展開結果への再帰的適用を有効に
+  The expansion "mwg_pp:param" is again applied to the result of the expansion.
 $"..."
-  展開結果への再帰的適用を無効に
+  The recursive parameter expansion is disabled.
 ```
 
-中身自体に括弧の構成文字を含めたい時は \ でエスケープ可能
+When one wants to include a literal character matching `DELIM`, one can escape
+it with a backslash `\`.
 
-### `<中身>`
+### `PARAM_SPEC`
 
 ```
-key
-  変数 key の中身を出力
+KEY
+  Returns the value of the variable KEY
 
-key:-alter
-  変数 key の中身を出力
-  変数 key の中身が空の時は alter を出力
+KEY:-ALTER
+  Returns the value of the variable KEY.  When the value is empty, returns
+  ALTER instead.
 
-key:+value
-  変数 key の中身が空かどうかを判定し、
-  空でなければ value を出力
+KEY:+VALUE
+  Returns VALUE if the variable KEY is not empty.  Otherwise, returns an empty
+  string.
 
-key:?warn
-  変数 key の中身を出力
-  変数 key の中身が空の時は warn を警告として stderr に出力
+KEY:?WARN
+  Returns the value of the variable KEY.  When the value is empty, outputs WARN
+  to the standard error output.
 
-key:start:length
-  変数 key の中身の部分文字列を出力
-  start は部分文字列の開始位置 (zero based) を指定
-  length は部分文字列の長さを指定
+KEY:START:LENGTH
+  Returns a substring the value of the variable KEY.  START specifies the
+  0-based index of the beginning of the substring.  LENGTH specifies the length
+  of the substring.
 
-#key
-  変数 key の中身の文字数を出力する。
+#KEY
+  Returns the length of the value of the variable KEY.
 
-key/rex_before/txt_after
-  変数 key の中身を変換した結果を出力する。
-  正規表現による置換を実行する。初めの一致だけを置換する。
+KEY/REX_BEFORE/TXT_AFTER
+  Replace the first substring in the value of the variable KEY, that matches
+  the regular expression REX_BEFORE, with TXT_AFTER and returns the result.
 
-key//rex_before/txt_after
-  変数 key の中身を変換した結果を出力する。
-  正規表現による置換を実行する。全ての一致に対して置換を行う。
+KEY//REX_BEFORE/TXT_AFTER
+  Replace all substrings in the value of the variable KEY, that match the
+  regular expression REX_BEFORE, with TXT_AFTER and returns the result.
 
-key.modifiers
-  変数 key の中身を変換した結果を出力する。
-  ".modifiers" によって mwg_pp:modifiers 変換を行う。
+KEY.MODIFIERS
+  Transform the value of the variable KEY using .MODIFIERS as mwg_pp:modifiers
+  and returns the result.
 
-.for:var:expr_begin:expr_end:content:separator
-  content を separator で区切って繰り返し出力
+.for:VAR:EXPR_BEGIN:EXPR_END:CONTENT:SEPARATOR
+  Repeat CONTENT with the separator SEPARATOR.  Subtring matching VAR are
+  replaced with the loop index ranging in [EXPR_BEGIN, EXPR_END].
 
-.for_sep:var:expr_begin:expr_end:content:separator
-  content を separator で区切って繰り返し出力
-  一回以上の出力の際、separator を末端に追加
+.for_sep:VAR:EXPR_BEGIN:EXPR_END:CONTENT:SEPARATOR
+  The same as .for but SEPARATOR is appended to the last CONTENT if any.
 
 .sep_for:var:expr_begin:expr_end:content:separator
-  content を separator で区切って繰り返し出力
-  一回以上の出力の際、separator を先頭に追加
+  The same as .for but SEPARATOR is prepended to the first CONTENT if any.
 
-.eval:expression
-  expression を mwg_pp:eval_expr で評価した結果を出力
+.eval:EXPRESSION
+  EXPRESSION is evaluated using "mwg_pp:eval_expr" and returns the result.
 ```
 
-## mwg_pp:eval_expr
+## 1.4 mwg_pp:eval_expr
 
 ### Tokens
 
-- 数値: `/[.0-9]+/`
-- 変数: `/[_a-zA-Z][_a-zA-Z0-9]*/`
-  - 変数は `#%define` で定義される物と共有される。
-- 演算子
-  - 前置演算子: `+ - !`
-  - 二項演算子: `+ - * / %   == != < <= > >= & ^ | && || = ,`
-- 括弧: `/[[({]/` ... `/[])}]/`
-  - `[ ... ]` の時、中身は整数に丸められる。
+- Number: `/[.0-9]+/`
+- Variable: `/[_a-zA-Z][_a-zA-Z0-9]*/`
+  - Variable namespace is shared with the ones defined by `#%define`.
+- Operator
+  - Prefix operator: `+ - !`
+  - Binary operator: `+ - * / %   == != < <= > >= & ^ | && || = ,`
+- Brackets: `/[[({]/` ... `/[])}]/`
+  - `[ ... ]` rounds the value to an integer.
 
 ### Functions
 
-- 算術演算
+- Arithmetic/mathematical functions
   - `int(value)`
   - `float(value)`
   - `floor(value)`
@@ -317,12 +347,12 @@ key.modifiers
   - `sinh(value)`
   - `cosh(value)`
   - `tanh(value)`
-- 乱数
+- Random numbers
   - `rand()`
   - `srand()`
-- 文字列操作
+- String manipulations
   - `trim(text)`
-  - `sprintf(fmt, ...)` (可変長引数は9つまで)
+  - `sprintf(fmt, ...)` (up to nine variadic arguments are supported)
   - `length(text)`
   - `slice(text, start, end)`
   - `text.length`
@@ -331,57 +361,59 @@ key.modifiers
   - `text.slice(start, end)`
   - `text.tolower()`
   - `text.toupper()`
-- システム
-  - `getenv(var)` 環境変数の値を取得
-  - `system(cmd)` コマンドの標準出力を取得
+- System functions
+  - `getenv(var)` Retrieve the value of the environment variable.
+  - `system(cmd)` Executes the command and take the standard output.
 
-## 環境変数
+# 2. Environment variables
 
 ```
 PPC_C=1
 ```
 
-行 `/*% ... */` をディレクティブとして解釈する。
+The lines of the form `/*% ... */` are interpreted as directives.
 
 ```
 PPC_CPP=1
 ```
 
-行 `//% ...` をディレクティブとして解釈する。
+The lines of the form `//% ...` are interpreted as directives.
 
 ```
 PPC_PRAGMA=1
 ```
 
-行 `#pragma% ...` をディレクティブとして解釈する。
+The lines of the form `#pragma% ...` are interpreted as directives.
 
 ```
 PPLINENO=1
 ```
 
-行番号を出力する。
-例: `#line <行番号> "<ファイル名>"`
+Line numbers are output in the form `#line LINENO "FILENAME"`
 
 ```
 PPLINENO_FILE=filename
 ```
 
-行番号出力で使用するファイル名を指定する。
+Specify the filename used by `PPLINENO=1`.
 
 ```
 DEPENDENCIES_OUTPUT=dependency_filename
 ```
 
-Makefile で使うための依存関係をファイル `dependency_filename` に出力する。
+Saves the dependencies in the file `dependency_filename` in a format that can
+be included from `Makefile`.
 
 ```
 DEPENDENCIES_TARGET=target
 ```
 
-出力する依存関係の target (コロンの左側に出力するもの) を指定する。
+Specifies the target (i.e., the name on the left-hand side of `:`) in the
+dependency file.
 
 ```
 DEPENDENCIES_PHONY=1
 ```
 
-依存対象のファイルについて空のルールを出力する。依存対象のファイルが存在しない時に Makefile に無視させるため。
+Generates empty rules for the files the target depends on so that `make`
+ignores the files when they do not exist.
