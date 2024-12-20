@@ -1263,7 +1263,7 @@ function ev3scan(expression, words, _expr, _wlen, _w, _wt, _m, _value, _c, _i, _
 
   _expr = expression;
   while (length(_expr) >= 1) {
-    if (match(_expr, /^([[:space:]]*\/\/[^\n]*($|\n)|\/\*([^*]\/?|\*)*\*\/[[:space:]]*)+[[:space:]]*|^[[:space:]]+/) >= 1) {
+    if (match(_expr, /^([[:blank:]]*\/\/[^\n]*($|\n)|\/\*([^*]\/?|\*)*\*\/[[:blank:]]*)+[[:blank:]]*|^[[:blank:]]+/) >= 1) {
       # 空白・コメント (無視)
       _expr = substr(_expr, RLENGTH + 1);
     } else if (match(_expr, /^(_|[^[:cntrl:][:blank:][:punct:][:digit:]])(_|[^[:cntrl:][:blank:][:punct:]])*/) >= 1) {
@@ -3272,7 +3272,7 @@ BEGIN {
   #test_ev3parse();
   source = "";
 }
-NR != 1 || !/^[[:space:]]*#/ {
+NR != 1 || !/^[[:blank:]]*#/ {
   #print ev3eval(g_ctx, $0);
   #ev3eval(g_ctx, $0);
   source = source "\n" $0
