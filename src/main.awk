@@ -17,7 +17,7 @@ function print_error(title, msg) {
 
 function trim(text) {
   #gsub(/^[ \t]+|[ \t]+$/, "", text);
-  gsub(/^[[:space:]]+|[[:space:]]+$/, "", text);
+  gsub(/^[[:blank:]]+|[[:blank:]]+$/, "", text);
   return text;
 }
 
@@ -398,7 +398,7 @@ function range_end(args, _cmd, _arg, _txt, _clines, _cfiles) {
 }
 
 function dctv_define(args, _, _cap, _name, _name2) {
-  if (match(args, /^([-_a-zA-Z0-9:]+)[[:space:]]*(\([[:space:]]*)?$/, _cap) > 0) {
+  if (match(args, /^([-_a-zA-Z0-9:]+)[[:blank:]]*(\([[:blank:]]*)?$/, _cap) > 0) {
     # dctv: #%define hoge
     # dctv: #%define hoge (
     _name = _cap[1];
@@ -406,7 +406,7 @@ function dctv_define(args, _, _cap, _name, _name2) {
       range_end("");
     else
       range_begin("define", _name);
-  } else if (match(args, /^([-_:[:alnum:]]+)[[:space:]]+([-_:[:alnum:]]+)(.*)$/, _cap) > 0) {
+  } else if (match(args, /^([-_:[:alnum:]]+)[[:blank:]]+([-_:[:alnum:]]+)(.*)$/, _cap) > 0) {
     # dctv: #%define a b.mods
     _name = _cap[1];
     _name2 = _cap[2];
@@ -506,7 +506,7 @@ function dctv_expand(args, _, _cap, _txt, _type) {
       _txt = modify_text(_txt, _cap[2]);
       process_multiline(_txt, d_data[_cap[1], "L"], d_data[_cap[1], "F"]);
     }
-  } else if (match(args, /^[[:space:]]*$/) > 0) {
+  } else if (match(args, /^[[:blank:]]*$/) > 0) {
     _type = 1;
   } else {
     print "mwg_pp.awk:#%expand: missing data name" > "/dev/stderr"
@@ -609,7 +609,7 @@ function data_print(key) {
   add_line(d_data[key]);
 }
 function execute(command, _line, _caps, _n, _cfile) {
-  if (match(command, /^(>>?)[[:space:]]*([^[:space:]]*)/, _caps) > 0) {
+  if (match(command, /^(>>?)[[:blank:]]*([^[:blank:]]*)/, _caps) > 0) {
     # 出力先の変更
     fflush(m_outpath);
     m_outpath = _caps[2];
@@ -693,7 +693,7 @@ function process_line(line, _line, _text, _ind, _len, _directive, _cap) {
   if (m_comment_cpp)
     sub(/^\/\//, "#", _line);
   if (m_comment_pragma)
-    sub(/^[[:space:]]*#[[:space:]]*pragma/, "#", _line);
+    sub(/^[[:blank:]]*#[[:blank:]]*pragma/, "#", _line);
   if (m_comment_c && match(_line, /^\/\*(.+)\*\/$/, _cap) > 0)
     _line = "#" _cap[1];
 
@@ -810,7 +810,7 @@ function dependency_generate(output, target, is_phony, _i, _iMax, _line, _file) 
     _iMax = m_dependency_count - 1;
     for (_i = 0; _i < m_dependency_count; _i++) {
       _file = m_dependency[_i];
-      gsub(/[[:space:]]/, "\\\\&", _file);
+      gsub(/[[:blank:]]/, "\\\\&", _file);
       _line = _i == 0? target ": ": "  ";
       _line = _line _file;
       if (_i < _iMax) _line = _line " \\";
@@ -820,7 +820,7 @@ function dependency_generate(output, target, is_phony, _i, _iMax, _line, _file) 
     if (is_phony) {
       for (_i = 0; _i < m_dependency_count; _i++) {
         _file = m_dependency[_i];
-        gsub(/[[:space:]]/, "\\\\&", _file);
+        gsub(/[[:blank:]]/, "\\\\&", _file);
         printf("%s:\n\n", _file) > output;
       }
     }

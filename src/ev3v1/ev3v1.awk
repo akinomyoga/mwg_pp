@@ -276,7 +276,7 @@ function ev3scan(expression,words, _wlen,_i,_len,_c,_t,_w){
       }
 
       _t=OP_STR;
-    }else if(_c ~ /[[:space:]]/){
+    }else if(_c ~ /[[:blank:]]/){
       continue; # ignore blank
     }else{
       print_error("mwg_pp.ev3scan","unrecognized character '" _c "'");

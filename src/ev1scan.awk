@@ -148,7 +148,7 @@ function ev1scan_scan(expression, words, _wlen, _i, _len, _c, _t, _w) {
           _w = _w _c;
         }
       }
-    } else if (_c ~ /[[:space:]]/) {
+    } else if (_c ~ /[[:blank:]]/) {
       continue; # ignore blank
     } else {
       print_error("mwg_pp.eval_expr", "unrecognizable character '" _c "'");

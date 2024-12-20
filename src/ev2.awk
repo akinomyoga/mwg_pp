@@ -400,7 +400,7 @@ function ev2_funcall(dDict, dName, funcname, aDict, aName, _a, _i, _c, _result, 
   } else if (funcname == "trim") {
     _resultT = TYPE_STR;
     _result = _a[0];
-    gsub(/^[[:space:]]+|[[:space:]]+$/, "", _result);
+    gsub(/^[[:blank:]]+|[[:blank:]]+$/, "", _result);
   } else if (funcname == "sprintf") {
     _resultT = TYPE_STR;
     _result = sprintf(_a[0], _a[1], _a[2], _a[3], _a[4], _a[5], _a[6], _a[7], _a[8], _a[9]);
