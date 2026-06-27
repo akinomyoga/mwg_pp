@@ -372,7 +372,7 @@ function range_end(args, _cmd, _arg, _txt, _clines, _cfiles) {
   _cmd = d_rstack[d_level, "c"];
   _arg = d_rstack[d_level, "a"];
   _txt = d_content[d_level];
-  if (m_lineno) { # 20120726
+  if (c_lineno) { # 20120726
     _clines = d_content[d_level, "L"];
     _cfiles = d_content[d_level, "F"];
   }
@@ -384,7 +384,7 @@ function range_end(args, _cmd, _arg, _txt, _clines, _cfiles) {
   # process
   if (_cmd == "define") {
     d_data[_arg] = _txt;
-    if (m_lineno) { # 20120726
+    if (c_lineno) { # 20120726
       d_data[_arg, "L"] = _clines;
       d_data[_arg, "F"] = _cfiles;
     }
@@ -416,7 +416,7 @@ function dctv_define(args, _, _cap, _name, _name2) {
     else
       d_data[_name] = d_data[_name2];
 
-    if (m_lineno) {
+    if (c_lineno) {
       d_data[_name, "L"] = d_data[_name2, "L"];
       d_data[_name, "F"] = d_data[_name2, "F"];
     }
@@ -561,7 +561,7 @@ function include_file(file, _line, _lines, _i, _n, _dir, _originalFile, _origina
 }
 
 function dctv_error(message, _title) {
-  if (m_lineno_cfile != "" || m_lineno)
+  if (m_lineno_cfile != "" || c_lineno)
     _title = m_lineno_cfile ":" m_lineno_cline;
   else
     _title = FILENAME;
@@ -635,7 +635,7 @@ function execute(command, _line, _caps, _n, _cfile) {
 #===============================================================================
 function add_line(line) {
   if (d_level == 0) {
-    if (m_lineno) { # 20120726
+    if (c_lineno) { # 20120726
       if (m_addline_cfile != m_lineno_cfile||++m_addline_cline != m_lineno_cline) {
         m_addline_cline = m_lineno_cline;
         m_addline_cfile = m_lineno_cfile;
@@ -690,11 +690,11 @@ function process_line(line, _line, _text, _ind, _len, _directive, _cap) {
 
   sub(/^[ \t]+/, "", _line);
   sub(/[ \t\r]+$/, "", _line);
-  if (m_comment_cpp)
+  if (c_comment_cpp)
     sub(/^\/\//, "#", _line);
-  if (m_comment_pragma)
+  if (c_comment_pragma)
     sub(/^[[:blank:]]*#[[:blank:]]*pragma/, "#", _line);
-  if (m_comment_c && match(_line, /^\/\*(.+)\*\/$/, _cap) > 0)
+  if (c_comment_c && match(_line, /^\/\*(.+)\*\/$/, _cap) > 0)
     _line = "#" _cap[1];
 
   if (_line ~ /^#%[^%]/) {
@@ -765,11 +765,11 @@ BEGIN{
   d_data[0] = "";
 
   m_outpath = "";
-  m_comment_c      = int(ENVIRON["PPC_C"]) != 0;
-  m_comment_cpp    = int(ENVIRON["PPC_CPP"]) != 0;
-  m_comment_pragma = int(ENVIRON["PPC_PRAGMA"]) != 0;
+  c_comment_c      = int(ENVIRON["PPC_C"]) != 0;
+  c_comment_cpp    = int(ENVIRON["PPC_CPP"]) != 0;
+  c_comment_pragma = int(ENVIRON["PPC_PRAGMA"]) != 0;
 
-  m_lineno         = int(ENVIRON["PPLINENO"]) != 0;
+  c_lineno         = int(ENVIRON["PPLINENO"]) != 0;
 
   INCLUDE_DIRECTORY = ENVIRON["HOME"] "/.mwg/mwgpp/include"
 
