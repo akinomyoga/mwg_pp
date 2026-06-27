@@ -279,7 +279,7 @@ function ev3scan(expression, words, _wlen, _i, _len, _c, _t, _w) {
     } else if (_c ~ /[[:blank:]]/) {
       continue; # ignore blank
     } else {
-      print_error("mwg_pp.ev3scan", "unrecognized character '" _c "'");
+      print_error("ev3scan", "unrecognized character '" _c "'");
       continue; # ignore unknown character
     }
 
@@ -414,7 +414,7 @@ function ev3parse(expression, _wlen, _words, _i, _len, _t, _w, _sid, _p, _sp, _s
         _sl = ev3obj[_sid];
         _sp = _sid ":" _sl - 1;
         if (!(_sl >= 1 && ev3obj[_sp, "+t"] == SE_MARK)) {
-          print_error("mwg_pp.ev3:syntax", "no matching open paren to " _w " in " expression);
+          print_error("ev3:syntax", "no matching open paren to " _w " in " expression);
           continue;
         }
       } else if (_stype == SE_MARK) {
@@ -423,7 +423,7 @@ function ev3parse(expression, _wlen, _words, _i, _len, _t, _w, _sid, _p, _sp, _s
         _sl = ev3obj[_sid];
         _sp = _sid ":" _sl - 1;
       } else {
-        print_error("mwg_pp.ev3:syntax", "unexpected right bracket '" _w "' in " expression);
+        print_error("ev3:syntax", "unexpected right bracket '" _w "' in " expression);
         continue;
       }
       # state: [.. _sp(=open) _sp1]
@@ -494,7 +494,7 @@ function ev3parse(expression, _wlen, _words, _i, _len, _t, _w, _sid, _p, _sp, _s
     } else if (_t == OP_STR) {
       ev3parse_push(_sid, _w, TYPE_STR, SE_VALU);
     } else {
-      print_error("mwg_pp.ev3:fatal", "unknown token type " _t);
+      print_error("ev3:parse", "unknown token type " _t, "fatal");
     }
   }
 
@@ -515,9 +515,9 @@ function ev3parse_op_inc(w, ptr, _T, _p) {
       else if (w == "--")
         ev3obj[ptr]--;
       else
-        print_error("mwg_pp.ev3:fatal", "unknown increment operator " w);
+        print_error("ev3:type", "unknown increment operator " w, "fatal");
     } else {
-      print_error("mwg_pp.ev3:type", "type(" _T ")::operator" w);
+      print_error("ev3:type", "type(" _T ")::operator" w);
     }
   } else {
     # value (do nothing)
@@ -550,18 +550,18 @@ function ev3parse_op_call(dst, w, pobj, parg, _pobj, _isref, _T, _i, _p) {
           }
         }
       } else {
-        print_error("mwg_pp.ev3:runtime", "array_index_out_of_range");
+        print_error("ev3:runtime", "array_index_out_of_range");
       }
     } else if (_T == TYPE_OBJ) {
       _i = ev3obj_raw_int(_pobj);
 
     } else {
-      print_error("mwg_pp.ev3:type", "type(" _T ")::operator" w);
+      print_error("ev3:type", "type(" _T ")::operator" w);
     }
   } else if (w == "()") {
 
   } else {
-    print_error("mwg_pp.ev3:type", "unknown type of function call '" w "' in " expression);
+    print_error("ev3:type", "unknown type of function call '" w "' in " expression);
   }
 
   if (_w == "[]" && and(ev3obj[_sp2, "M"], MOD_REF)) {
@@ -578,7 +578,7 @@ function ev3parse_op_call(dst, w, pobj, parg, _pobj, _isref, _T, _i, _p) {
     # member function call
     ev2_memcall(ev3obj, _sp2, ev3obj, _sp2 SUBSEP ATTR_MTH_OBJ, ev3obj[_sp2, ATTR_MTH_MEM], ev3obj, _sp1);
   } else {
-    print_error("mwg_pp.eval", "invalid function call " ev3obj[_sp2] " " _w " in " expression)
+    print_error("eval", "invalid function call " ev3obj[_sp2] " " _w " in " expression)
   }
 }
 

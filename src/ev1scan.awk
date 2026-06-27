@@ -106,7 +106,7 @@ function ev1scan_scan(expression, words, _wlen, _i, _len, _c, _t, _w) {
       _w = _c;
       while (_i + 1 < _len) {
         _c = substr(expression, _i + 2, 1);
-        #print "dbg: ev_db_op[" _w _c "] = " ev_db_operator[_w _c] > "/dev/stderr"
+        #print_error("eval_expr", "ev_db_op[" _w _c "] = " ev_db_operator[_w _c], "debug");
         if (ev_db_operator[_w _c] != "") {
           _w = _w _c;
           _i++;
@@ -137,7 +137,7 @@ function ev1scan_scan(expression, words, _wlen, _i, _len, _c, _t, _w) {
         if (_c  == "\"") {
           break;
         } else if (_c == "\\") {
-          #print_error("dbg: (escchar = " _c " " substr(expression, _i + 2, 1) ")" );
+          #print_error("eval_expr", "(escchar = " _c " " substr(expression, _i + 2, 1) ")", "debug");
           if (_i + 1 < _len) {
             _w = _w ev1scan_scan_escchar(substr(expression, _i + 2, 1));
             _i++;
@@ -151,7 +151,7 @@ function ev1scan_scan(expression, words, _wlen, _i, _len, _c, _t, _w) {
     } else if (_c ~ /[[:blank:]]/) {
       continue; # ignore blank
     } else {
-      print_error("mwg_pp.eval_expr", "unrecognizable character '" _c "'");
+      print_error("eval_expr", "unrecognizable character '" _c "'");
       continue; # ignore unknown character
     }
 
@@ -162,7 +162,7 @@ function ev1scan_scan(expression, words, _wlen, _i, _len, _c, _t, _w) {
 
   # debug
   #for (_i = 0; _i < _wlen; _i++) {
-  #    print "yield " words[_i, "w"] " as " words[_i, "t"] > "/dev/stderr"
+  #  print_error("eval_expr", "yield " words[_i, "w"] " as " words[_i, "t"], "debug");
   #}
 
   return _wlen;

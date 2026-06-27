@@ -10,10 +10,24 @@ function awk_getfiledir(_ret) {
   return _ret;
 }
 
-function print_error(title, msg, is_warning) {
-  if (!is_warning)
+function print_error(section, msg, is_warning, _header) {
+  if (!is_warning) {
     global_errorCount++;
-  print "\33[1;31m" title "!\33[m " msg > "/dev/stderr";
+    _header = "error";
+  } else {
+    if (is_warning == "fatal") {
+      global_errorCount++;
+      _header = "fatal";
+    } else if (is_warning == "debug") {
+      _header = "debug";
+    } else {
+      _header = "warning";
+    }
+  }
+
+  if (section != "")
+    _header = _header "(" section ")";
+  print "\33[1;31mmwgpp: " _header ":\33[m " msg > "/dev/stderr";
 }
 
 function trim(text) {
@@ -125,7 +139,7 @@ function inline_expand(text, _, _ret, _ltext, _rtext, _mtext, _name, _r, _s, _a,
       _s["warn"] = slice(_name, RLENGTH);
       _r = "" d_data[_s["key"]];
       if (_r == "") {
-        print "(parameter expansion:" _mtext ")! " _s["warn"] > "/dev/stderr"
+        print_error("parameter expansion", "\x1b[36m"_mtext "\x1b[m: " _s["warn"], 1);
         _ltext = _ltext _mtext;
         _r = "";
       }
@@ -172,11 +186,11 @@ function inline_expand(text, _, _ret, _ltext, _rtext, _mtext, _name, _r, _s, _a,
       } else if (_s["func"] == "eval" && _s["argc"] == 1) {
         _r = inline_function_eval(_a);
       } else {
-        print "(parameter function:" _s["func"] ")! unrecognized function." > "/dev/stderr";
+        print_error("parameter function", "\x1b[36m" _s["func"] "\x1b[m: unrecognized function.", 1);
         _r = _mtext;
       }
     } else {
-      print "(parameter expansion:" _mtext ")! unrecognized expansion." > "/dev/stderr";
+      print_error("parameter expansion", "\x1b[36m" _mtext "\x1b[m: unrecognized expansion.", 1);
       _r = _mtext;
     }
 
@@ -239,7 +253,7 @@ function modify_text__replace(content, before, after, flags) {
   if (index(flags, "m")) {
     _jlen = split(content, _lines, "\n");
     content = modify_text__replace0(_lines[1], before, after, flags);
-    #print_error("mwg_pp(modify_text)", "replace('" _lines[1] "','" before "','" after "') = '" content "'");
+    #print_error("modify_text", "replace('" _lines[1] "','" before "','" after "') = '" content "'");
     for (_j = 1; _j < _jlen; _j++)
       content = content "\n" modify_text__replace0(_lines[_j + 1], before, after, flags);
   } else {
@@ -471,15 +485,15 @@ function dctv_elif(cond, _cmd) {
     } else {
       range_begin("IF3");
       if (_cmd ~ /IF[34]/)
-        print_error("mwgpp:#%else", "if clause have already ended!");
+        print_error("#%else", "if clause have already ended!");
     }
   } else {
-    print_error("mwgpp:#%else", "no matching if directive");
+    print_error("#%else", "no matching if directive");
   }
 }
 function dctv_else(_, _cap, _cmd) {
   if (d_level == 0) {
-    print_error("mwgpp:#%else", "no matching if directive");
+    print_error("#%else", "no matching if directive");
     return;
   }
 
@@ -491,10 +505,10 @@ function dctv_else(_, _cap, _cmd) {
     } else {
       range_begin("IF3");
       if (_cmd ~ /IF[34]/)
-        print_error("mwgpp:#%else", "if clause have already ended!");
+        print_error("#%else", "if clause have already ended!");
     }
   } else {
-    print_error("mwgpp:#%else", "no matching if directive");
+    print_error("#%else", "no matching if directive");
   }
 }
 
@@ -545,7 +559,7 @@ function include_file(file, _line, _lines, _i, _n, _dir, _originalFile, _origina
   while ((_r = getline _line < file) >0)
     _lines[_n++] = _line;
   if (_r < 0)
-    print_error("could not open the include file '" file "'");
+    print_error("#%include", "could not open the include file '" file "'");
   close(file);
 
   dependency_add(file);
@@ -626,9 +640,9 @@ function execute(command, _line, _caps, _n, _cfile, _ret, _status) {
     _status = close(command);
 
     if (_ret < 0) {
-      print_error("mwgpp:#%exec", "pipe(\x1b[36m" command "\x1b[m): " (ERRNO != "" ? ERRNO : "error"));
+      print_error("#%exec", "pipe(\x1b[36m" command "\x1b[m): " (ERRNO != "" ? ERRNO : "error"));
     } else if (_status != 0) {
-      print_error("mwgpp:#%exec", "pipe(\x1b[36m" command "\x1b[m): command failed, exit = " _status, c_mwgpp_flags !~ /e/);
+      print_error("#%exec", "pipe(\x1b[36m" command "\x1b[m): command failed, exit = " _status, c_mwgpp_flags !~ /e/);
     }
 
     _cfile = "$(" command ")";
@@ -714,7 +728,7 @@ function process_line(line, _line, _text, _ind, _len, _directive, _cap) {
       _directive = _cap[1];
       _text = trim(_cap[2]);
     } else {
-      print_error("unrecognized directive line: " line);
+      print_error("directives", "unrecognized directive line: " line);
       return;
     }
 
@@ -734,7 +748,7 @@ function process_line(line, _line, _text, _ind, _len, _directive, _cap) {
     } else if (_directive == "elif") {
       dctv_elif(_text);
     } else if (_directive == "modify") { # obsoleted. use #%define name name.mods
-      print_error("obsoleted directive modify");
+      print_error("#%modify", "deprecated directive");
       dctv_modify(_text);
     } else if (_directive == "include" || _directive == "<") {
       include_file(_text);
@@ -753,7 +767,7 @@ function process_line(line, _line, _text, _ind, _len, _directive, _cap) {
     } else if (_directive == "error") {
       dctv_error(_text);
     } else {
-      print_error("unrecognized directive " _directive);
+      print_error("directives", "unrecognized directive " _directive);
     }
   } else if (_line ~ /^##+%/) {
     add_line(substr(_line, 2));

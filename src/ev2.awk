@@ -73,7 +73,7 @@ function ev2_expr(expression, _wlen, _words, _i, _len, _t, _w, _v, _sp, _s, _sp1
             else if (_w == "--")
               d_data[_s[_sp, "R"]]--;
             else
-              print_error("mwg_pp.eval", "unknown increment operator " _w);
+              print_error("eval", "unknown increment operator " _w);
 
             _s[_sp, "M"] = MOD_NUL;
             delete _s[_sp, "R"];
@@ -84,13 +84,13 @@ function ev2_expr(expression, _wlen, _words, _i, _len, _t, _w, _v, _sp, _s, _sp1
           _t = "u"; # unary operator
         }
       } else {
-        print_error("mwg_pp.eval", "unknown operator " _w);
+        print_error("eval", "unknown operator " _w);
       }
 
       if (_t == "b") {
         #-- binary operator
         _l = ev_db_operator[_w, "a"];
-        #print "dbg: binary operator level = " _l > "/dev/stderr"
+        #print_error("eval", "binary operator level = " _l, "debug");
 
         # get lhs
         _sp = ev2_pop_value(_s, _sp, _l); # left assoc
@@ -133,7 +133,7 @@ function ev2_expr(expression, _wlen, _words, _i, _len, _t, _w, _v, _sp, _s, _sp1
 
       # parentheses
       if (!(_sp >= 0 && _s[_sp, "t"] == SE_MARK)) {
-        print_error("mwg_pp.eval: no matching open paren to " _w " in " expression);
+        print_error("eval", "no matching open paren to " _w " in " expression);
         continue;
       }
       _w = _s[_sp, "m"] _w;
@@ -145,7 +145,7 @@ function ev2_expr(expression, _wlen, _words, _i, _len, _t, _w, _v, _sp, _s, _sp1
         if (_w == "?:") {
           _sp = ev2_pop_value(_s, _sp, 3.0); # assoc_value_3
           _v = (_s[_sp] != 0 && _s[_sp] != "") ? "T" : "F";
-          #print_error("dbg: _s[_sp]=" _s[_sp] " _v=" _v);
+          #print_error("eval", "_s[_sp]=" _s[_sp] " _v=" _v, "debug");
 
           # last element
           _s[_sp] = _s[_sp1];
@@ -175,7 +175,7 @@ function ev2_expr(expression, _wlen, _words, _i, _len, _t, _w, _v, _sp, _s, _sp1
             # member function call
             ev2_memcall(_s, _sp, _s, _sp SUBSEP ATTR_MTH_OBJ, _s[_sp, ATTR_MTH_MEM], _s, _sp1);
           } else {
-            print "mwg_pp.eval: invalid function call " _s[_sp] " " _w " in " expression > "/dev/stderr"
+            print_error("eval", "invalid function call " _s[_sp] " " _w " in " expression, 1);
           }
         }
       } else {
@@ -208,7 +208,7 @@ function ev2_expr(expression, _wlen, _words, _i, _len, _t, _w, _v, _sp, _s, _sp1
       _s[_sp, "T"] = TYPE_STR;
       _s[_sp, "M"] = MOD_NUL;
     } else {
-      print_error("mwg_pp.eval:fatal", "unknown token type " _t);
+      print_error("eval", "unknown token type " _t, "fatal");
     }
   }
 
@@ -247,7 +247,7 @@ function ev2_pop_value(s, sp, assoc, rDict, rName, _vp, _value) {
 }
 
 function ev2_memget(dDict, dName, oDict, oName, memname) {
-  #print_error("mwg_pp.eval", "dbg: ev2_memget(memname=" memname ")");
+  #print_error("eval", "ev2_memget(memname=" memname ")", "debug");
 
   # embedded special member
   if (oDict[oName, "T"] == TYPE_STR) {
@@ -264,7 +264,7 @@ function ev2_memget(dDict, dName, oDict, oName, memname) {
       dDict[dName, "t"] = SE_VALU;
       dDict[dName, "T"] = TYPE_STR;
       dDict[dName, "M"] = MOD_MTH;
-      #print_error("mwg_pp.eval", "dbg: method = String#" memname);
+      #print_error("eval", "method = String#" memname, "debug");
       return;
     }
   } else {
@@ -279,7 +279,7 @@ function ev2_memget(dDict, dName, oDict, oName, memname) {
     dDict[dName, "M"] = MOD_REF;
     dDict[dName, ATTR_REF] = oDict[oName, ATTR_REF] SUBSEP memname;
   } else {
-    print_error("mwg.eval", "invalid member name '" memname "'");
+    print_error("eval", "invalid member name '" memname "'");
     dDict[dName] = "";
     dDict[dName, "t"] = SE_VALU;
     dDict[dName, "T"] = TYPE_STR;
@@ -290,7 +290,7 @@ function ev2_memget(dDict, dName, oDict, oName, memname) {
 }
 
 function ev2_memcall(dDict, dName, oDict, oName, memname, aDict, aName, _a, _i, _c, _result, _resultT) {
-  #print_error("mwg_pp.eval", "dbg: ev2_memcall(memname=" memname ")");
+  #print_error("eval", "ev2_memcall(memname=" memname ")", "debug");
 
   _resultT = "";
 
@@ -328,7 +328,7 @@ function ev2_memcall(dDict, dName, oDict, oName, memname, aDict, aName, _a, _i, 
   #-----------------
   # write value
   if (_resultT == "") {
-    print_error("mwg.eval", "invalid member function name '" memname "'");
+    print_error("eval", "invalid member function name '" memname "'");
     _result = "";
     _resultT = TYPE_STR;
   }
@@ -421,7 +421,7 @@ function ev2_funcall(dDict, dName, funcname, aDict, aName, _a, _i, _c, _result, 
     close(_cmd);
     sub(/\n+$/, "", _result);
   } else {
-    print_error("mwg_pp.eval", "unknown function " funcname);
+    print_error("eval", "unknown function " funcname);
     _result = 0;
   }
 
@@ -450,7 +450,7 @@ function ev2_apply(stk, iPre, iVal, _pT, _pW, _lhs, _rhs, _lhsT, _rhsT, _result,
     _rhsT = stk[iVal, "T"];
     _resultT = TYPE_NUM;
 
-    #print "binary " _lhs " " _pW " " _rhs > "/dev/stderr"
+    #print_error("eval", "binary " _lhs " " _pW " " _rhs, "debug");
     if (_pW == "+") {
       if (_lhsT == TYPE_STR || _rhsT == TYPE_STR) {
         _result = _lhs _rhs;
@@ -578,7 +578,7 @@ function ev2_apply(stk, iPre, iVal, _pT, _pW, _lhs, _rhs, _lhsT, _rhsT, _result,
 function ev2_copy(dDict, dName, sDict, sName, _M, _t, _i, _iN) {
   # assertion
   if (sDict[sName, "t"] != SE_VALU) {
-    print_error("mwg_pp.eval:fatal", "copying not value element");
+    print_error("eval", "copying not value element", "fatal");
   }
 
   dDict[dName] = sDict[sName];                # value
@@ -608,7 +608,7 @@ function ev2_copy(dDict, dName, sDict, sName, _M, _t, _i, _iN) {
 
 function ev2_delete(sDict, sName) {
   if (sDict[sName, "t"] != SE_VALU) {
-    print_error("mwg_pp.eval:fatal", "deleting not value element");
+    print_error("eval", "deleting not value element", "fatal");
   }
 
   delete sDict[sName];     # value
