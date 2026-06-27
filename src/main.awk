@@ -10,8 +10,9 @@ function awk_getfiledir(_ret) {
   return _ret;
 }
 
-function print_error(title, msg) {
-  global_errorCount++;
+function print_error(title, msg, is_warning) {
+  if (!is_warning)
+    global_errorCount++;
   print "\33[1;31m" title "!\33[m " msg > "/dev/stderr";
 }
 
@@ -608,7 +609,7 @@ function data_define(pair, _sep, _i, _k, _v, _capt, _rex) {
 function data_print(key) {
   add_line(d_data[key]);
 }
-function execute(command, _line, _caps, _n, _cfile) {
+function execute(command, _line, _caps, _n, _cfile, _ret, _status) {
   if (match(command, /^(>>?)[[:blank:]]*([^[:blank:]]*)/, _caps) > 0) {
     # 出力先の変更
     fflush(m_outpath);
@@ -619,9 +620,16 @@ function execute(command, _line, _caps, _n, _cfile) {
     }
   } else {
     _n = 0;
-    while ((command | getline _line) > 0)
+    ERRNO = "";
+    while ((_ret = (command | getline _line)) > 0)
       _lines[_n++] = _line;
-    close(command);
+    _status = close(command);
+
+    if (_ret < 0) {
+      print_error("mwgpp:#%exec", "pipe(\x1b[36m" command "\x1b[m): " (ERRNO != "" ? ERRNO : "error"));
+    } else if (_status != 0) {
+      print_error("mwgpp:#%exec", "pipe(\x1b[36m" command "\x1b[m): command failed, exit = " _status, c_mwgpp_flags !~ /e/);
+    }
 
     _cfile = "$(" command ")";
     gsub(/[\\"]/, "\\\\&", _cfile);
@@ -770,6 +778,7 @@ BEGIN{
   c_comment_pragma = int(ENVIRON["PPC_PRAGMA"]) != 0;
 
   c_lineno         = int(ENVIRON["PPLINENO"]) != 0;
+  c_mwgpp_flags    = ENVIRON["MWGPP_FLAGS"];
 
   INCLUDE_DIRECTORY = ENVIRON["HOME"] "/.mwg/mwgpp/include"
 

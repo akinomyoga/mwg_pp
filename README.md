@@ -368,6 +368,16 @@ KEY.MODIFIERS
 # 2. Environment variables
 
 ```
+MWGPP_FLAGS=chars
+```
+
+A set of the flags to control the behavior.  If character `e` is contained,
+when any command executation by directive `exec` exits with a non-zero status
+in the processing, `mwg_pp.awk` fails with a non-zero exit status.  It is noted
+that a failure of the command execution does not immediately terminate the
+processing.
+
+```
 PPC_C=1
 ```
 
